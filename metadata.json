@@ -1,0 +1,6 @@
+{
+  "name": "Smart Education Authority (SEA)",
+  "description": "منصة ذكية متكاملة لإنشاء وتأجير وإدارة المنصات التعليمية المخصصة للمدرسين والطلاب مع مشغل فيديو فائق الأمان ونظام امتحانات متقدم.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

@@ -1,0 +1,2 @@
+sed -i '' -e 's/localStorage.setItem(.sea_printed_codes_batches., JSON.stringify(updatedBatches));/localStorage.setItem("sea_printed_codes_batches", JSON.stringify(updatedBatches));\n        syncPrintedCodesBatchToSupabase(updatedBatches.find((b) => b.id === batch.id)!);/' src/context/AppContext.tsx
+sed -i '' -e 's/setPrintedCodesBatches((prev) => \[newBatch, ...prev\]);/setPrintedCodesBatches((prev) => \[newBatch, ...prev\]);\n    syncPrintedCodesBatchToSupabase(newBatch);/' src/context/AppContext.tsx
