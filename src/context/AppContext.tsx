@@ -61,6 +61,15 @@ import {
   syncPrintedCodesBatchToSupabase,
   fetchSupabasePrintedCodesBatches,
   deletePrintedCodesBatchFromSupabase,
+  syncExamToSupabase,
+  fetchSupabaseExams,
+  deleteExamFromSupabase,
+  syncAssignmentToSupabase,
+  fetchSupabaseAssignments,
+  deleteAssignmentFromSupabase,
+  syncStudyTaskToSupabase,
+  fetchSupabaseStudyTasks,
+  deleteStudyTaskFromSupabase,
 } from '../lib/supabaseSync';
 import { detectCurrentDevice } from '../utils/deviceUtils';
 
@@ -191,6 +200,13 @@ interface AppContextType {
   createAssignment: (assignmentData: Partial<Assignment>) => void;
   updateAssignment: (id: string, updates: Partial<Assignment>) => void;
   deleteAssignment: (id: string) => void;
+  submitAssignment: (
+    assignmentId: string,
+    studentId: string,
+    answers: Record<string, any>,
+    timeSpentSeconds: number,
+    conceptSheetUsed?: boolean
+  ) => AssignmentSubmission;
   submitAssignmentAttempt: (submission: Omit<AssignmentSubmission, 'id' | 'submittedAt'>) => AssignmentSubmission;
   gradeAssignmentSubmission: (submissionId: string, manualScores: Record<string, number>, feedback: string) => void;
 
@@ -341,245 +357,66 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
   const [platforms, setPlatforms] = useState<EducationalPlatform[]>(() => {
     const saved = localStorage.getItem('sea_platforms');
-    let parsed: EducationalPlatform[] = saved ? JSON.parse(saved) : [];
-    
-    // Purge any legacy fake mock platforms
-    const fakeIds = ['platform-english-01', 'platform-physics-01', 'platform-arabic-01', 'platform-chemistry-01', 'platform-french-01', 'platform-01', 'platform-02', 'platform-03'];
-    parsed = parsed.filter(p => 
-      !fakeIds.includes(p.id) && 
-      !p.teacherName.includes('أحمد سامي') && 
-      !p.teacherName.includes('خالد الصاوي') && 
-      !p.teacherName.includes('حسام النجار') && 
-      !p.teacherName.includes('إبراهيم عثمان') && 
-      !p.teacherName.includes('د. طارق') && 
-      !p.teacherName.includes('أ. عمرو')
-    );
-
-    // Ensure the authentic teacher account exists
-    const requiredTeacherEmail = 'Mrenglishlangue9190krt@mnsa.sea.com'.toLowerCase();
-    const hasRequiredTeacher = parsed.some(p => p.teacherEmail.toLowerCase() === requiredTeacherEmail);
-    
-    if (!hasRequiredTeacher) {
-      const oldIndex = parsed.findIndex(p => p.teacherEmail === 'radwan@sea.edu');
-      if (oldIndex !== -1) {
-        parsed[oldIndex].teacherEmail = 'Mrenglishlangue9190krt@mnsa.sea.com';
-        parsed[oldIndex].teacherPassword = '6@ff-engl1-00pmnes-sea';
-      } else {
-        parsed = [FALLBACK_PLATFORM, ...parsed];
+    if (saved) {
+      try {
+        const parsed: EducationalPlatform[] = JSON.parse(saved);
+        const fakeIds = ['platform-english-01', 'platform-physics-01', 'platform-arabic-01', 'platform-chemistry-01', 'platform-french-01', 'platform-01', 'platform-02', 'platform-03'];
+        return parsed.filter(p => 
+          !fakeIds.includes(p.id) && 
+          !p.teacherName?.includes('أحمد سامي') && 
+          !p.teacherName?.includes('خالد الصاوي') && 
+          !p.teacherName?.includes('حسام النجار') && 
+          !p.teacherName?.includes('إبراهيم عثمان') && 
+          !p.teacherName?.includes('د. طارق') && 
+          !p.teacherName?.includes('أ. عمرو')
+        );
+      } catch (e) {
+        console.error(e);
       }
     }
-    
-    const finalPlatforms = parsed.length > 0 ? parsed : [FALLBACK_PLATFORM];
-    localStorage.setItem('sea_platforms', JSON.stringify(finalPlatforms));
-    return finalPlatforms;
+    return [];
   });
 
   const [courses, setCourses] = useState<Course[]>(() => {
     const saved = localStorage.getItem('sea_courses');
-    let parsed: Course[] = saved ? JSON.parse(saved) : [];
-    
-    // Purge fake mock courses (including physics, geography, and test tags)
-    const fakeKeywords = ['فيزياء', 'الصواريخ', 'النجار', 'الجغرافيا', 'أطلس', 'أحمد سامي', 'خالد الصاوي', 'د. طارق', 'KGK', 'kgk'];
-    const fakePlatformIds = ['platform-english-01', 'platform-physics-01', 'platform-arabic-01', 'platform-chemistry-01', 'platform-french-01', 'platform-01', 'platform-02', 'platform-03'];
-    
-    parsed = parsed.filter(c => {
-      if (fakePlatformIds.includes(c.platformId)) return false;
-      const title = c.title || '';
-      const subtitle = c.subtitle || '';
-      const desc = c.description || '';
-      const hasFakeKeyword = fakeKeywords.some(kw => 
-        title.includes(kw) || subtitle.includes(kw) || desc.includes(kw)
-      );
-      return !hasFakeKeyword;
-    });
+    if (saved) {
+      try {
+        let parsed: Course[] = JSON.parse(saved);
+        const fakeKeywords = ['فيزياء', 'الصواريخ', 'النجار', 'الجغرافيا', 'أطلس', 'أحمد سامي', 'خالد الصاوي', 'د. طارق', 'KGK', 'kgk'];
+        const fakePlatformIds = ['platform-english-01', 'platform-physics-01', 'platform-arabic-01', 'platform-chemistry-01', 'platform-french-01', 'platform-01', 'platform-02', 'platform-03'];
+        
+        parsed = parsed.filter(c => {
+          if (fakePlatformIds.includes(c.platformId)) return false;
+          const title = c.title || '';
+          const subtitle = c.subtitle || '';
+          const desc = c.description || '';
+          const hasFakeKeyword = fakeKeywords.some(kw => 
+            title.includes(kw) || subtitle.includes(kw) || desc.includes(kw)
+          );
+          return !hasFakeKeyword;
+        });
 
-    if (parsed.length === 0) {
-      const starterCourse: Course = {
-        id: 'course-radwan-general-01',
-        platformId: 'platform-radwan-01',
-        title: 'كورس مادة اللغة الإنجليزية - الثانوية العامة',
-        subtitle: 'شرح تفصيلي للمفردات، القواعد اللغوية وحل نماذج الامتحانات الوزارية',
-        description: 'كورس شامل يغطي جميع وحدات منهج اللغة الإنجليزية للثانوية العامة، مع تدريبات عملية مكثفة، حل بنوك أسئلة وتدريبات تفاعلية دورية.',
-        thumbnail: 'https://images.unsplash.com/photo-1456513080510-7bf3a84b82f8?auto=format&fit=crop&w=1200&q=80',
-        subject: 'اللغة الإنجليزية',
-        stage: 'secondary',
-        gradeLevel: 'الصف الثالث الثانوي',
-        term: 'term2',
-        price: 250,
-        originalPrice: 350,
-        isFree: false,
-        totalDurationMinutes: 180,
-        modulesCount: 1,
-        lessonsCount: 2,
-        enrolledCount: 0,
-        rating: 5.0,
-        status: 'published',
-        tags: ['شرح', 'مراجعة', 'ثانوية عامة 2026'],
-        createdAt: '2026-02-01',
-        participatingTeachers: [],
-        modules: [
-          {
-            id: 'mod-radwan-01',
-            courseId: 'course-radwan-general-01',
-            title: 'الوحدة الأولى: قواعد اللغة الإنجليزية والأزمنة (Grammar & Tenses)',
-            order: 1,
-            lessons: [
-              {
-                id: 'les-radwan-01',
-                courseId: 'course-radwan-general-01',
-                moduleId: 'mod-radwan-01',
-                title: 'المحاضرة الأولى: التأسيس الشامل وقواعد الأزمنة الأساسية',
-                description: 'شرح مفصل ومبسط لأهم القواعد مع حل أمثلة تطبيقية وتدريبات مباشرة.',
-                durationMinutes: 45,
-                videoUrl: 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4',
-                videoProvider: 'direct',
-                type: 'video',
-                isFree: true,
-                isFreePreview: true,
-                isPublished: true,
-                order: 1,
-                hasWatermark: true,
-                notes: 'يرجى مراجعة ملف الملاحظات والتدريب على الأسئلة بعد انتهاء المحاضرة.',
-              },
-              {
-                id: 'les-radwan-02',
-                courseId: 'course-radwan-general-01',
-                moduleId: 'mod-radwan-01',
-                title: 'المحاضرة الثانية: المفردات والتراكيب وحل نماذج القطع والترجمة',
-                description: 'شرح المفردات الشائعة وحل قطع الفهم واستراتيجيات الإجابة الصحيحة.',
-                durationMinutes: 50,
-                videoUrl: 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ElephantsDream.mp4',
-                videoProvider: 'direct',
-                type: 'video',
-                isFree: false,
-                isFreePreview: false,
-                isPublished: true,
-                order: 2,
-                hasWatermark: true,
-              },
-              {
-                id: 'les-radwan-03',
-                courseId: 'course-radwan-general-01',
-                moduleId: 'mod-radwan-01',
-                title: 'مذكرة الشرح والتدريبات الشاملة (PDF)',
-                description: 'ملف المذكرة الرسمي للوحدة الأولى بصيغة PDF عالي الجودة والجاهز للمذاكرة.',
-                type: 'pdf',
-                pdfUrl: 'https://www.w3.org/WAI/ER/tests/xhtml/testfiles/resources/pdf/sample.pdf',
-                isFree: true,
-                isFreePreview: true,
-                isPublished: true,
-                order: 3,
-              },
-              {
-                id: 'les-radwan-04',
-                courseId: 'course-radwan-general-01',
-                moduleId: 'mod-radwan-01',
-                title: 'الامتحان التفاعلي الشامل على الوحدة الأولى',
-                description: 'اختبار مؤمن بنظام ملء الشاشة الصارم وحظر الخروج لقياس استيعاب القواعد والكلمات.',
-                type: 'exam',
-                examId: 'exam-radwan-01',
-                isFree: false,
-                isFreePreview: false,
-                isPublished: true,
-                order: 4,
-              },
-            ],
-          },
-        ],
-      };
-      parsed = [starterCourse];
+        return parsed.map((course) => ({
+          ...course,
+          participatingTeachers: course.participatingTeachers || [],
+        }));
+      } catch (e) {
+        console.error(e);
+      }
     }
-
-    // Ensure participating teachers array is initialized properly
-    parsed = parsed.map((course) => ({
-      ...course,
-      participatingTeachers: course.participatingTeachers || [],
-    }));
-
-    // Clean up old default duration values (35 or 30) for video lessons
-    parsed = parsed.map((course) => ({
-      ...course,
-      modules: (course.modules || []).map((mod) => ({
-        ...mod,
-        lessons: (mod.lessons || []).map((les) => {
-          if (les.type === 'video' && (les.durationMinutes === 35 || les.durationMinutes === 30)) {
-            return { ...les, durationMinutes: 0 };
-          }
-          return les;
-        }),
-      })),
-    }));
-    
-    localStorage.setItem('sea_courses', JSON.stringify(parsed));
-    return parsed;
+    return [];
   });
 
   const [exams, setExams] = useState<Exam[]>(() => {
     const saved = localStorage.getItem('sea_exams');
-    let parsed: Exam[] = saved ? JSON.parse(saved) : [];
-    if (parsed.length === 0) {
-      parsed = [
-        {
-          id: 'exam-radwan-01',
-          courseId: 'course-radwan-general-01',
-          title: 'الامتحان التفاعلي الشامل على الوحدة الأولى (Grammar & Vocabulary)',
-          description: 'اختبار شامل ومؤمن على الوحدة الأولى لطلاب الثانوية العامة.',
-          durationMinutes: 30,
-          passingScorePercent: 60,
-          totalPoints: 7,
-          preventCopyPaste: true,
-          cancelOnLeave: true,
-          allowRetake: true,
-          maxAttempts: 2,
-          allowHints: true,
-          showResultInstant: true,
-          showExplanationAfterSubmit: true,
-          shuffleQuestions: false,
-          isPublished: true,
-          createdAt: '2026-02-01',
-          questions: [
-            {
-              id: 'q_1',
-              examId: 'exam-radwan-01',
-              type: 'mcq',
-              prompt: 'By the time the manager arrived, the team __________ the presentation.',
-              options: ['had finished', 'have finished', 'finishes', 'was finishing'],
-              correctOptionIndex: 0,
-              points: 2,
-              hint: 'لاحظ استخدام By the time متبوعة بماضٍ بسيط للدلالة على حدث أقدم منه في الماضي (Past Perfect).',
-              explanation: 'نستخدم Past Perfect (had + p.p) للتعبير عن حدث وقع قبل حدث آخر في الماضي عند استخدام By the time.',
-              allowHint: true,
-            },
-            {
-              id: 'q_2',
-              examId: 'exam-radwan-01',
-              type: 'true_false',
-              prompt: 'The present continuous tense can be used to express fixed future arrangements.',
-              options: ['صحيح (True)', 'خطأ (False)'],
-              correctBool: true,
-              correctOptionIndex: 0,
-              points: 2,
-              hint: 'تذكر استخدام المضارع المستمر مع الترتيبات المؤكدة مثل السفر أو الحفلات.',
-              explanation: 'نعم، زمن المضارع المستمر يُستخدم للتعبير عن الترتيبات المستقبلية المكتملة الإعداد.',
-              allowHint: true,
-            },
-            {
-              id: 'q_3',
-              examId: 'exam-radwan-01',
-              type: 'fill_blank',
-              prompt: 'If she __________ harder, she would have passed the exam with distinction.',
-              fillBlankAnswers: ['had studied', 'studied hard'],
-              points: 3,
-              hint: 'هذه الحالة الشرطية الثالثة (Third Conditional): If + Past Perfect, would have + p.p.',
-              explanation: 'في الحالة الشرطية الثالثة نستخدم Past Perfect في جملة الشرط للتعبير عن افتراض مستحيل في الماضي.',
-              allowHint: true,
-            },
-          ],
-        },
-      ];
-      localStorage.setItem('sea_exams', JSON.stringify(parsed));
+    if (saved) {
+      try {
+        return JSON.parse(saved);
+      } catch (e) {
+        console.error(e);
+      }
     }
-    return parsed;
+    return [];
   });
 
   const [orderRequests, setOrderRequests] = useState<PlatformOrderRequest[]>(() => {
@@ -696,66 +533,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         console.error(e);
       }
     }
-    const initialQuestions: LessonQuestion[] = [
-      {
-        id: 'q-radwan-01',
-        courseId: 'course-radwan-general-01',
-        courseTitle: 'كورس مادة اللغة الإنجليزية - الثانوية العامة',
-        lessonId: 'les-radwan-01',
-        lessonTitle: 'المحاضرة الأولى: التأسيس الشامل وقواعد الأزمنة الأساسية',
-        teacherId: 'platform-radwan-01',
-        teacherName: 'مستر محمد رضوان',
-        studentId: 'student-demo-001',
-        studentName: 'طالب مسجل',
-        studentCode: 'SEA-2026-98421',
-        studentAvatar: 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&w=120&q=80',
-        questionText: 'مستر، في الدقيقة 04:15 حضرتك وضحت زمن Past Continuous مع While، هل ينفع يجي بعد While زمن Past Simple في حالات استثنائية؟',
-        timestampSeconds: 255,
-        status: 'answered',
-        replies: [
-          {
-            id: 'rep-01',
-            authorId: 'teacher-radwan',
-            authorName: 'مستر محمد رضوان',
-            authorRole: 'teacher',
-            authorAvatar: 'https://images.unsplash.com/photo-1568602471122-7832951cc4c5?auto=format&fit=crop&q=80&w=300&h=300',
-            message: 'سؤال ممتاز يا بني! نعم، إذا كان الفعل من أفعال الحواس أو الشعور أو الملكية (Stative Verbs) مثل verb to be أو have بمعنى يملك، لا يوضع في صيغة الاستمرار، فنستخدم الماضي البسيط مثل: While I was at home, someone knocked at the door.',
-            createdAt: '2026-02-15T14:30:00.000Z'
-          },
-          {
-            id: 'rep-02',
-            authorId: 'student-demo-001',
-            authorName: 'طالب مسجل',
-            authorRole: 'student',
-            message: 'تمام وضحت جداً يا مستر، جزاك الله كل خير!',
-            createdAt: '2026-02-15T15:10:00.000Z'
-          }
-        ],
-        createdAt: '2026-02-15T14:00:00.000Z',
-        updatedAt: '2026-02-15T15:10:00.000Z'
-      },
-      {
-        id: 'q-radwan-02',
-        courseId: 'course-radwan-general-01',
-        courseTitle: 'كورس مادة اللغة الإنجليزية - الثانوية العامة',
-        lessonId: 'les-radwan-01',
-        lessonTitle: 'المحاضرة الأولى: التأسيس الشامل وقواعد الأزمنة الأساسية',
-        teacherId: 'platform-radwan-01',
-        teacherName: 'مستر محمد رضوان',
-        studentId: 'student-ahmed-12',
-        studentName: 'أحمد محمود العوضي',
-        studentCode: 'SEA-2026-11045',
-        studentAvatar: 'https://images.unsplash.com/photo-1570295999919-56ceb5ecca61?auto=format&fit=crop&w=120&q=80',
-        questionText: 'هل في فرق بين استخدام used to و would عند التعبير عن العادات القديمة في الماضي؟',
-        timestampSeconds: 480,
-        status: 'pending',
-        replies: [],
-        createdAt: '2026-02-18T10:20:00.000Z',
-        updatedAt: '2026-02-18T10:20:00.000Z'
-      }
-    ];
-    localStorage.setItem('sea_lesson_questions', JSON.stringify(initialQuestions));
-    return initialQuestions;
+    return [];
   });
 
   useEffect(() => {
@@ -834,30 +612,30 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         fetchSupabaseUserProfiles(),
       ]);
 
-      if (remotePlatforms && remotePlatforms.length > 0) {
+      if (remotePlatforms !== null) {
         setPlatforms(remotePlatforms);
         localStorage.setItem('sea_platforms', JSON.stringify(remotePlatforms));
       }
-      if (remoteCourses && remoteCourses.length > 0) {
+      if (remoteCourses !== null) {
         setCourses(remoteCourses);
         localStorage.setItem('sea_courses', JSON.stringify(remoteCourses));
       }
-      if (remoteCoupons && remoteCoupons.length > 0) {
+      if (remoteCoupons !== null) {
         setCoupons(remoteCoupons);
         localStorage.setItem('sea_coupons', JSON.stringify(remoteCoupons));
       }
-      if (remoteLiveSessions && remoteLiveSessions.length > 0) {
+      if (remoteLiveSessions !== null) {
         setLiveSessions(remoteLiveSessions);
       }
-      if (remoteSupportTickets && remoteSupportTickets.length > 0) {
+      if (remoteSupportTickets !== null) {
         setSupportTickets(remoteSupportTickets);
         localStorage.setItem('sea_support_tickets', JSON.stringify(remoteSupportTickets));
       }
-      if (remotePrintedBatches && remotePrintedBatches.length > 0) {
+      if (remotePrintedBatches !== null) {
         setPrintedCodesBatches(remotePrintedBatches);
         localStorage.setItem('sea_printed_codes_batches', JSON.stringify(remotePrintedBatches));
       }
-      if (remoteUserProfiles && remoteUserProfiles.length > 0) {
+      if (remoteUserProfiles !== null) {
         setUserProfiles(remoteUserProfiles);
         localStorage.setItem('sea_user_profiles', JSON.stringify(remoteUserProfiles));
       }
@@ -906,34 +684,56 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     const initSupabaseData = async () => {
       try {
         const remotePlatforms = await fetchSupabasePlatforms();
-        if (remotePlatforms && remotePlatforms.length > 0) {
+        if (remotePlatforms !== null) {
           setPlatforms(remotePlatforms);
+          localStorage.setItem('sea_platforms', JSON.stringify(remotePlatforms));
         }
         const remoteCourses = await fetchSupabaseCourses();
-        if (remoteCourses && remoteCourses.length > 0) {
+        if (remoteCourses !== null) {
           setCourses(remoteCourses);
+          localStorage.setItem('sea_courses', JSON.stringify(remoteCourses));
         }
         const remoteCoupons = await fetchSupabaseCoupons();
-        if (remoteCoupons && remoteCoupons.length > 0) {
+        if (remoteCoupons !== null) {
           setCoupons(remoteCoupons);
+          localStorage.setItem('sea_coupons', JSON.stringify(remoteCoupons));
         }
         const remoteLiveSessions = await fetchSupabaseLiveSessions();
-        if (remoteLiveSessions && remoteLiveSessions.length > 0) {
+        if (remoteLiveSessions !== null) {
           setLiveSessions(remoteLiveSessions);
         }
         const remoteSupportTickets = await fetchSupabaseSupportTickets();
-        if (remoteSupportTickets && remoteSupportTickets.length > 0) {
+        if (remoteSupportTickets !== null) {
           setSupportTickets(remoteSupportTickets);
+          localStorage.setItem('sea_support_tickets', JSON.stringify(remoteSupportTickets));
+        }
+
+        const remoteExams = await fetchSupabaseExams();
+        if (remoteExams !== null) {
+          setExams(remoteExams);
+          localStorage.setItem('sea_exams', JSON.stringify(remoteExams));
+        }
+
+        const remoteAssignments = await fetchSupabaseAssignments();
+        if (remoteAssignments !== null) {
+          setAssignments(remoteAssignments);
+          localStorage.setItem('sea_assignments', JSON.stringify(remoteAssignments));
+        }
+
+        const remoteStudyTasks = await fetchSupabaseStudyTasks();
+        if (remoteStudyTasks !== null) {
+          setStudyTasks(remoteStudyTasks);
+          localStorage.setItem('sea_study_tasks', JSON.stringify(remoteStudyTasks));
         }
         
         const remotePrintedBatches = await fetchSupabasePrintedCodesBatches();
-        if (remotePrintedBatches && remotePrintedBatches.length > 0) {
+        if (remotePrintedBatches !== null) {
           setPrintedCodesBatches(remotePrintedBatches);
           localStorage.setItem('sea_printed_codes_batches', JSON.stringify(remotePrintedBatches));
         }
 
         const remoteUserProfiles = await fetchSupabaseUserProfiles();
-        if (remoteUserProfiles && remoteUserProfiles.length > 0) {
+        if (remoteUserProfiles !== null) {
           setUserProfiles(remoteUserProfiles);
           localStorage.setItem('sea_user_profiles', JSON.stringify(remoteUserProfiles));
           
@@ -1930,23 +1730,28 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       attemptsCount: 0,
     };
     setExams((prev) => [newExam, ...prev]);
+    syncExamToSupabase(newExam).catch(console.warn);
     addToast('success', 'تم إنشاء الامتحان وبنك الأسئلة بنجاح!');
   };
 
   const updateExam = (examId: string, examData: Partial<Exam>) => {
-    setExams((prev) =>
-      prev.map((ex) => {
+    setExams((prev) => {
+      const updated = prev.map((ex) => {
         if (ex.id === examId) {
-          return { ...ex, ...examData };
+          const u = { ...ex, ...examData };
+          syncExamToSupabase(u).catch(console.warn);
+          return u;
         }
         return ex;
-      })
-    );
+      });
+      return updated;
+    });
     addToast('success', 'تم تحديث الامتحان وبنك الأسئلة بنجاح! ✏️');
   };
 
   const deleteExam = (examId: string) => {
     setExams((prev) => prev.filter((ex) => ex.id !== examId));
+    deleteExamFromSupabase(examId).catch(console.warn);
     addToast('info', 'تم حذف الامتحان وبنك الأسئلة.');
   };
 
@@ -2202,15 +2007,27 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       createdAt: new Date().toISOString(),
     };
     setStudyTasks((prev) => [newTask, ...prev]);
+    syncStudyTaskToSupabase(newTask).catch(console.warn);
     addToast('success', 'تم إضافة المهمة لجدولك 🗓️');
   };
 
   const updateStudyTask = (taskId: string, updates: Partial<StudyTask>) => {
-    setStudyTasks((prev) => prev.map((t) => t.id === taskId ? { ...t, ...updates } : t));
+    setStudyTasks((prev) => {
+      const updated = prev.map((t) => {
+        if (t.id === taskId) {
+          const u = { ...t, ...updates };
+          syncStudyTaskToSupabase(u).catch(console.warn);
+          return u;
+        }
+        return t;
+      });
+      return updated;
+    });
   };
 
   const deleteStudyTask = (taskId: string) => {
     setStudyTasks((prev) => prev.filter((t) => t.id !== taskId));
+    deleteStudyTaskFromSupabase(taskId).catch(console.warn);
     addToast('info', 'تم حذف المهمة');
   };
 
@@ -2493,19 +2310,130 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     };
 
     setAssignments((prev) => [newAssign, ...prev]);
+    syncAssignmentToSupabase(newAssign).catch(console.warn);
     addToast('success', 'تم إنشاء الواجب المنزلي المتخصص بنجاح! 📝');
   };
 
   const updateAssignment = (id: string, updates: Partial<Assignment>) => {
-    setAssignments((prev) =>
-      prev.map((a) => (a.id === id ? { ...a, ...updates } : a))
-    );
+    setAssignments((prev) => {
+      const updated = prev.map((a) => {
+        if (a.id === id) {
+          const u = { ...a, ...updates };
+          syncAssignmentToSupabase(u).catch(console.warn);
+          return u;
+        }
+        return a;
+      });
+      return updated;
+    });
     addToast('success', 'تم تحديث بيانات الواجب المتخصص وورقة المفاهيم!');
   };
 
   const deleteAssignment = (id: string) => {
     setAssignments((prev) => prev.filter((a) => a.id !== id));
+    deleteAssignmentFromSupabase(id).catch(console.warn);
     addToast('info', 'تم حذف الواجب.');
+  };
+
+  const submitAssignment = (
+    assignmentId: string,
+    studentId: string,
+    answers: Record<string, any>,
+    timeSpentSeconds: number,
+    conceptSheetUsed: boolean = false
+  ): AssignmentSubmission => {
+    const targetAssignment = assignments.find((a) => a.id === assignmentId);
+    let totalScore = 0;
+    const totalPoints = targetAssignment?.totalPoints || targetAssignment?.questions.reduce((s, q) => s + (q.points || 1), 0) || 10;
+
+    if (targetAssignment && targetAssignment.autoGrading) {
+      targetAssignment.questions.forEach((q) => {
+        const studentAns = answers[q.id];
+        if (studentAns === undefined || studentAns === null || studentAns === '') return;
+
+        if (q.type === 'mcq') {
+          if (Number(studentAns) === q.correctOptionIndex) {
+            totalScore += q.points || 1;
+          }
+        } else if (q.type === 'true_false') {
+          const isCorrect = (studentAns === true || studentAns === 0 || studentAns === 'true' || studentAns === '0')
+            ? (q.correctBool === true || q.correctOptionIndex === 0)
+            : (q.correctBool === false || q.correctOptionIndex === 1);
+          if (isCorrect) {
+            totalScore += q.points || 1;
+          }
+        } else if (q.type === 'fill_blank') {
+          const acceptable = (q.fillBlankAnswers || []).map((s) => s.trim().toLowerCase());
+          const cleanAns = String(studentAns).trim().toLowerCase();
+          if (acceptable.includes(cleanAns) || (acceptable.length === 0 && cleanAns.length > 0)) {
+            totalScore += q.points || 1;
+          }
+        } else if (q.type === 'matching') {
+          if (q.matchingPairs && typeof studentAns === 'object') {
+            const pairCount = q.matchingPairs.length;
+            let correctPairs = 0;
+            q.matchingPairs.forEach((pair) => {
+              if (studentAns[pair.id] === pair.right || studentAns[pair.left] === pair.right) {
+                correctPairs++;
+              }
+            });
+            const pairScore = pairCount > 0 ? ((q.points || 2) * (correctPairs / pairCount)) : 0;
+            totalScore += Math.round(pairScore * 10) / 10;
+          }
+        } else if (q.type === 'ordering') {
+          if (Array.isArray(studentAns) && q.orderingItems) {
+            const isIdentical = studentAns.every((item, idx) => item === q.orderingItems![idx]);
+            if (isIdentical) {
+              totalScore += q.points || 2;
+            }
+          }
+        } else if (q.type === 'listening') {
+          if (Number(studentAns) === q.correctOptionIndex) {
+            totalScore += q.points || 2;
+          }
+        } else if (q.type === 'passage') {
+          if (q.passageQuestions) {
+            q.passageQuestions.forEach((pq) => {
+              const subAns = answers[`${q.id}_${pq.id}`] ?? answers[pq.id];
+              if (Number(subAns) === pq.correctOptionIndex) {
+                totalScore += pq.points || 1;
+              }
+            });
+          }
+        } else if (q.type === 'error_correction') {
+          const expected = (q.correction || '').trim().toLowerCase();
+          const cleanAns = String(studentAns).trim().toLowerCase();
+          if (expected && cleanAns === expected) {
+            totalScore += q.points || 2;
+          }
+        }
+      });
+    }
+
+    const percentage = totalPoints > 0 ? Math.min(100, Math.round((totalScore / totalPoints) * 100)) : 100;
+    const passingPercent = targetAssignment?.passingScorePercent || 60;
+    const passed = percentage >= passingPercent;
+
+    const newSub: AssignmentSubmission = {
+      id: 'as_sub_' + Date.now() + '_' + Math.random().toString(36).substring(2, 6),
+      assignmentId,
+      assignmentTitle: targetAssignment?.title || 'واجب دراسي',
+      courseId: targetAssignment?.courseId || selectedCourseId || 'course-radwan-general-01',
+      studentId,
+      studentName: currentUser?.fourPartName || currentUser?.name || 'طالب مسجل',
+      studentPhone: currentUser?.phone,
+      score: Math.round(totalScore * 10) / 10,
+      totalPoints,
+      percentage,
+      passed,
+      submittedAt: new Date().toISOString(),
+      answers,
+      conceptSheetUsed,
+    };
+
+    setAssignmentSubmissions((prev) => [newSub, ...prev]);
+    addToast('success', 'تم تسليم الواجب بنجاح! 🎉', `درجتك: ${newSub.score} من ${newSub.totalPoints} (${newSub.percentage}%)`);
+    return newSub;
   };
 
   const submitAssignmentAttempt = (submissionData: Omit<AssignmentSubmission, 'id' | 'submittedAt'>): AssignmentSubmission => {
@@ -2744,6 +2672,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         createAssignment,
         updateAssignment,
         deleteAssignment,
+        submitAssignment,
         submitAssignmentAttempt,
         gradeAssignmentSubmission,
 

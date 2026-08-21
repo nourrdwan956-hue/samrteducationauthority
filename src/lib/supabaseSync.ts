@@ -11,6 +11,11 @@ import {
   User,
   SupportTicket,
   PrintedCodesBatch,
+  Assignment,
+  AssignmentSubmission,
+  StudyTask,
+  CourseStudentEnrollee,
+  CourseAnnouncement,
 } from '../types';
 
 export interface SupabaseHealthStatus {
@@ -92,7 +97,7 @@ export async function getSupabaseHealth(): Promise<SupabaseHealthStatus> {
 export async function fetchSupabasePlatforms(): Promise<EducationalPlatform[] | null> {
   try {
     const { data, error } = await supabase.from('platforms').select('*').order('created_at', { ascending: false });
-    if (error || !data || data.length === 0) return null;
+    if (error || !data) return null;
 
     return data.map((row) => ({
       id: row.id,
@@ -181,7 +186,7 @@ export async function deletePlatformFromSupabase(id: string): Promise<boolean> {
 export async function fetchSupabaseCourses(): Promise<Course[] | null> {
   try {
     const { data, error } = await supabase.from('courses').select('*').order('created_at', { ascending: false });
-    if (error || !data || data.length === 0) return null;
+    if (error || !data) return null;
 
     return data.map((row) => ({
       id: row.id,
@@ -365,7 +370,7 @@ export async function syncAdminLogToSupabase(logData: {
 export async function fetchSupabaseCoupons(): Promise<CouponCode[] | null> {
   try {
     const { data, error } = await supabase.from('coupons').select('*').order('created_at', { ascending: false });
-    if (error || !data || data.length === 0) return null;
+    if (error || !data) return null;
 
     return data.map((row) => ({
       id: row.id,
@@ -422,7 +427,7 @@ export async function deleteLiveSessionFromSupabase(id: string): Promise<boolean
 export async function fetchSupabaseLiveSessions(): Promise<LiveSession[] | null> {
   try {
     const { data, error } = await supabase.from('live_sessions').select('*').order('created_at', { ascending: false });
-    if (error || !data || data.length === 0) return null;
+    if (error || !data) return null;
 
     return data.map((row) => ({
       id: row.id,
@@ -483,7 +488,7 @@ export async function deleteSupportTicketFromSupabase(id: string): Promise<boole
 export async function fetchSupabaseSupportTickets(): Promise<SupportTicket[] | null> {
   try {
     const { data, error } = await supabase.from('support_tickets').select('*').order('created_at', { ascending: false });
-    if (error || !data || data.length === 0) return null;
+    if (error || !data) return null;
 
     return data.map((row) => ({
       id: row.id,
@@ -550,7 +555,7 @@ export async function syncUserProfileToSupabase(user: User): Promise<boolean> {
 export async function fetchSupabaseUserProfiles(): Promise<User[] | null> {
   try {
     const { data, error } = await supabase.from('users_profile').select('*').order('created_at', { ascending: false });
-    if (error || !data || data.length === 0) return null;
+    if (error || !data) return null;
 
     return data.map((row: any) => ({
       id: row.id,
@@ -626,7 +631,7 @@ export async function syncPrintedCodesBatchToSupabase(batch: PrintedCodesBatch):
 export async function fetchSupabasePrintedCodesBatches(): Promise<PrintedCodesBatch[] | null> {
   try {
     const { data, error } = await supabase.from('printed_codes_batches').select('*').order('created_at', { ascending: false });
-    if (error || !data || data.length === 0) return null;
+    if (error || !data) return null;
     return data.map((row: any) => ({
       id: row.id,
       platformId: row.platform_id,
@@ -659,6 +664,214 @@ export async function fetchSupabasePrintedCodesBatches(): Promise<PrintedCodesBa
 export async function deletePrintedCodesBatchFromSupabase(id: string): Promise<boolean> {
   try {
     const { error } = await supabase.from('printed_codes_batches').delete().eq('id', id);
+    return !error;
+  } catch {
+    return false;
+  }
+}
+
+// 25. Sync Exam to Supabase
+export async function syncExamToSupabase(exam: Exam): Promise<boolean> {
+  try {
+    const row = {
+      id: exam.id,
+      course_id: exam.courseId,
+      module_id: exam.moduleId,
+      lesson_id: exam.lessonId,
+      title: exam.title,
+      description: exam.description,
+      duration_minutes: exam.durationMinutes,
+      passing_score_percent: exam.passingScorePercent,
+      total_points: exam.totalPoints,
+      questions_data: exam.questions,
+      max_attempts: exam.maxAttempts,
+      allow_hints: exam.allowHints,
+      show_explanation: exam.showExplanationAfterSubmit,
+      shuffle_questions: exam.shuffleQuestions,
+      enable_anti_cheat: exam.enableAntiCheat,
+      strict_fullscreen: exam.strictFullscreenEnforced,
+      status: exam.status || 'published',
+      is_published: exam.isPublished ?? true,
+      attempts_count: exam.attemptsCount || 0,
+      created_at: exam.createdAt || new Date().toISOString(),
+    };
+    const { error } = await supabase.from('exams').upsert(row);
+    return !error;
+  } catch {
+    return false;
+  }
+}
+
+// 26. Fetch Exams from Supabase
+export async function fetchSupabaseExams(): Promise<Exam[] | null> {
+  try {
+    const { data, error } = await supabase.from('exams').select('*').order('created_at', { ascending: false });
+    if (error || !data) return null;
+    return data.map((row: any) => ({
+      id: row.id,
+      courseId: row.course_id,
+      moduleId: row.module_id,
+      lessonId: row.lesson_id,
+      title: row.title,
+      description: row.description,
+      durationMinutes: Number(row.duration_minutes || 20),
+      passingScorePercent: Number(row.passing_score_percent || 60),
+      totalPoints: Number(row.total_points || 10),
+      questions: Array.isArray(row.questions_data) ? row.questions_data : [],
+      showResultInstant: Boolean(row.show_result_instant ?? true),
+      allowRetake: Boolean(row.allow_retake ?? true),
+      maxAttempts: Number(row.max_attempts || 3),
+      allowHints: Boolean(row.allow_hints ?? true),
+      showExplanationAfterSubmit: Boolean(row.show_explanation ?? true),
+      shuffleQuestions: Boolean(row.shuffle_questions ?? false),
+      enableAntiCheat: Boolean(row.enable_anti_cheat ?? true),
+      strictFullscreenEnforced: Boolean(row.strict_fullscreen ?? true),
+      status: row.status || 'published',
+      isPublished: Boolean(row.is_published ?? true),
+      attemptsCount: Number(row.attempts_count || 0),
+      createdAt: row.created_at,
+    }));
+  } catch {
+    return null;
+  }
+}
+
+// 27. Delete Exam from Supabase
+export async function deleteExamFromSupabase(id: string): Promise<boolean> {
+  try {
+    const { error } = await supabase.from('exams').delete().eq('id', id);
+    return !error;
+  } catch {
+    return false;
+  }
+}
+
+// 28. Sync Assignment to Supabase
+export async function syncAssignmentToSupabase(assignment: Assignment): Promise<boolean> {
+  try {
+    const row = {
+      id: assignment.id,
+      course_id: assignment.courseId,
+      module_id: assignment.moduleId,
+      lesson_id: assignment.lessonId,
+      title: assignment.title,
+      description: assignment.description,
+      subject: assignment.subject,
+      concept_sheet_title: assignment.conceptSheetTitle,
+      concept_sheet_content: assignment.conceptSheetContent,
+      concept_sheet_attachment_url: assignment.conceptSheetAttachmentUrl,
+      duration_minutes: assignment.durationMinutes,
+      passing_score_percent: assignment.passingScorePercent,
+      total_points: assignment.totalPoints,
+      questions_data: assignment.questions,
+      max_attempts: assignment.maxAttempts,
+      allow_concept_sheet: assignment.allowConceptSheet,
+      show_model_answer: assignment.showModelAnswerAfterSubmission,
+      auto_grading: assignment.autoGrading,
+      due_date: assignment.dueDate,
+      status: assignment.status,
+      is_published: assignment.isPublished,
+      created_at: assignment.createdAt,
+    };
+    const { error } = await supabase.from('assignments').upsert(row);
+    return !error;
+  } catch {
+    return false;
+  }
+}
+
+// 29. Fetch Assignments from Supabase
+export async function fetchSupabaseAssignments(): Promise<Assignment[] | null> {
+  try {
+    const { data, error } = await supabase.from('assignments').select('*').order('created_at', { ascending: false });
+    if (error || !data) return null;
+    return data.map((row: any) => ({
+      id: row.id,
+      courseId: row.course_id,
+      moduleId: row.module_id,
+      lessonId: row.lesson_id,
+      title: row.title,
+      description: row.description,
+      subject: row.subject,
+      conceptSheetTitle: row.concept_sheet_title,
+      conceptSheetContent: row.concept_sheet_content,
+      conceptSheetAttachmentUrl: row.concept_sheet_attachment_url,
+      durationMinutes: Number(row.duration_minutes || 30),
+      passingScorePercent: Number(row.passing_score_percent || 60),
+      totalPoints: Number(row.total_points || 10),
+      questions: Array.isArray(row.questions_data) ? row.questions_data : [],
+      maxAttempts: Number(row.max_attempts || 3),
+      allowConceptSheet: Boolean(row.allow_concept_sheet ?? true),
+      showModelAnswerAfterSubmission: Boolean(row.show_model_answer ?? true),
+      autoGrading: Boolean(row.auto_grading ?? true),
+      dueDate: row.due_date,
+      status: row.status || 'published',
+      isPublished: Boolean(row.is_published ?? true),
+      createdAt: row.created_at,
+    }));
+  } catch {
+    return null;
+  }
+}
+
+// 30. Delete Assignment from Supabase
+export async function deleteAssignmentFromSupabase(id: string): Promise<boolean> {
+  try {
+    const { error } = await supabase.from('assignments').delete().eq('id', id);
+    return !error;
+  } catch {
+    return false;
+  }
+}
+
+// 31. Sync Study Task to Supabase
+export async function syncStudyTaskToSupabase(task: StudyTask): Promise<boolean> {
+  try {
+    const row = {
+      id: task.id,
+      student_id: task.studentId,
+      course_id: task.courseId,
+      title: task.title,
+      description: task.description,
+      due_date: task.dueDate,
+      due_time: task.dueTime,
+      status: task.status,
+      priority: task.priority,
+      created_at: task.createdAt,
+    };
+    const { error } = await supabase.from('study_tasks').upsert(row);
+    return !error;
+  } catch {
+    return false;
+  }
+}
+
+// 32. Fetch Study Tasks from Supabase
+export async function fetchSupabaseStudyTasks(): Promise<StudyTask[] | null> {
+  try {
+    const { data, error } = await supabase.from('study_tasks').select('*').order('created_at', { ascending: false });
+    if (error || !data) return null;
+    return data.map((row: any) => ({
+      id: row.id,
+      studentId: row.student_id,
+      courseId: row.course_id,
+      title: row.title,
+      description: row.description,
+      dueDate: row.due_date,
+      dueTime: row.due_time,
+      status: row.status || 'pending',
+      priority: row.priority || 'medium',
+      createdAt: row.created_at,
+    }));
+  } catch {
+    return null;
+  }
+}
+
+// 33. Delete Study Task from Supabase
+export async function deleteStudyTaskFromSupabase(id: string): Promise<boolean> {
+  try {
+    const { error } = await supabase.from('study_tasks').delete().eq('id', id);
     return !error;
   } catch {
     return false;

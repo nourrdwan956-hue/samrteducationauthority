@@ -293,7 +293,24 @@ export const CourseExamsTab: React.FC<CourseExamsTabProps> = ({
   };
 
   const handleRemoveQuestion = (idx: number) => {
-    if (questions.length <= 1) return;
+    if (questions.length <= 1) {
+      const qId = 'q_' + Date.now() + '_1';
+      setQuestions([
+        {
+          id: qId,
+          examId: '',
+          type: 'mcq',
+          prompt: '',
+          options: ['', '', '', ''],
+          correctOptionIndex: 0,
+          hint: '',
+          allowHint: true,
+          explanation: '',
+          points: 2,
+        },
+      ]);
+      return;
+    }
     setQuestions(questions.filter((_, i) => i !== idx));
   };
 
@@ -581,15 +598,28 @@ export const CourseExamsTab: React.FC<CourseExamsTabProps> = ({
       attemptsCount: 0,
     };
 
+    if (copyMode === 'move') {
+      if (isSameCourse) {
+        onUpdateExam(copyingExam.id, { moduleId: targetModuleId || undefined, title: newTitle });
+        syncExamWithCourseModules(course, copyingExam.id, newTitle, targetModuleId || undefined, copyingExam.durationMinutes);
+        setCopyingExam(null);
+        return;
+      } else {
+        onCreateExam(newExamData);
+        if (targetModuleId) {
+          syncExamWithCourseModules(targetCourseObj, newExamId, newTitle, targetModuleId, copyingExam.durationMinutes);
+        }
+        syncExamWithCourseModules(course, copyingExam.id, copyingExam.title, undefined);
+        onDeleteExam(copyingExam.id);
+        setCopyingExam(null);
+        return;
+      }
+    }
+
     onCreateExam(newExamData);
 
     if (targetModuleId) {
       syncExamWithCourseModules(targetCourseObj, newExamId, newTitle, targetModuleId, copyingExam.durationMinutes);
-    }
-
-    if (copyMode === 'move' && !isSameCourse) {
-      syncExamWithCourseModules(course, copyingExam.id, copyingExam.title, undefined);
-      onDeleteExam(copyingExam.id);
     }
 
     setCopyingExam(null);
@@ -1061,6 +1091,9 @@ export const CourseExamsTab: React.FC<CourseExamsTabProps> = ({
                       </option>
                     ))}
                   </select>
+
+
+  
                 </div>
 
                 <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 pt-1">
@@ -2062,11 +2095,59 @@ export const CourseExamsTab: React.FC<CourseExamsTabProps> = ({
                               </div>
 
                               {(q.passageQuestions || []).map((subQ, sIdx) => (
-                                <div key={subQ.id || sIdx} className="p-3 rounded-xl bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-800 space-y-2">
+                                <div key={subQ.id || sIdx} className="p-3.5 rounded-2xl bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-800 space-y-2.5 shadow-sm">
+                                  <div className="flex items-center justify-between gap-2">
+                                    <span className="text-xs font-bold text-slate-700 dark:text-slate-300">
+                                      السؤال الفرعي #{sIdx + 1}
+                                    </span>
+                                    <div className="flex items-center gap-2">
+                                      <button
+                                        type="button"
+                                        onClick={() => {
+                                          setQuestions((prev) =>
+                                            prev.map((item, i) => {
+                                              if (i === idx) {
+                                                const sub = [...(item.passageQuestions || [])];
+                                                const currentSubOpts = sub[sIdx].options || ['', ''];
+                                                sub[sIdx] = { ...sub[sIdx], options: [...currentSubOpts, ''] };
+                                                return { ...item, passageQuestions: sub };
+                                              }
+                                              return item;
+                                            })
+                                          );
+                                        }}
+                                        className="text-[10px] font-bold text-emerald-600 dark:text-emerald-400 hover:underline flex items-center gap-0.5"
+                                      >
+                                        <Plus className="w-3 h-3" />
+                                        <span>إضافة خيار</span>
+                                      </button>
+                                      {(q.passageQuestions || []).length > 1 && (
+                                        <button
+                                          type="button"
+                                          onClick={() => {
+                                            setQuestions((prev) =>
+                                              prev.map((item, i) => {
+                                                if (i === idx) {
+                                                  const sub = (item.passageQuestions || []).filter((_, subIdx) => subIdx !== sIdx);
+                                                  return { ...item, passageQuestions: sub };
+                                                }
+                                                return item;
+                                              })
+                                            );
+                                          }}
+                                          className="p-1 text-rose-500 hover:bg-rose-500/10 rounded-lg transition-colors"
+                                          title="حذف هذا السؤال الفرعي"
+                                        >
+                                          <Trash2 className="w-3.5 h-3.5" />
+                                        </button>
+                                      )}
+                                    </div>
+                                  </div>
+
                                   <input
                                     type="text"
                                     required
-                                    placeholder={`السؤال الفرعي #${sIdx + 1}`}
+                                    placeholder={`اكتب نص السؤال الفرعي #${sIdx + 1}...`}
                                     value={subQ.prompt}
                                     onChange={(e) => {
                                       const val = e.target.value;
@@ -2081,15 +2162,15 @@ export const CourseExamsTab: React.FC<CourseExamsTabProps> = ({
                                         })
                                       );
                                     }}
-                                    className="w-full px-3 py-1.5 rounded-lg bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-slate-900 dark:text-white text-xs focus:border-emerald-500 focus:outline-none"
+                                    className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-slate-900 dark:text-white text-xs focus:border-emerald-500 focus:outline-none"
                                   />
 
-                                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-1.5">
+                                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                                     {(subQ.options || ['', '', '', '']).map((sOpt, soIdx) => (
-                                      <div key={soIdx} className="flex items-center gap-1.5 p-1.5 rounded-lg bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-xs">
+                                      <div key={soIdx} className="flex items-center gap-2 p-2 rounded-xl bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-xs">
                                         <input
                                           type="radio"
-                                          name={`sub_correct_${subQ.id}`}
+                                          name={`sub_correct_${subQ.id}_${idx}`}
                                           checked={subQ.correctOptionIndex === soIdx}
                                           onChange={() => {
                                             setQuestions((prev) =>
@@ -2103,12 +2184,12 @@ export const CourseExamsTab: React.FC<CourseExamsTabProps> = ({
                                               })
                                             );
                                           }}
-                                          className="w-3.5 h-3.5 accent-emerald-500"
+                                          className="w-4 h-4 accent-emerald-500 cursor-pointer shrink-0"
                                         />
                                         <input
                                           type="text"
                                           required
-                                          placeholder={`خيار ${soIdx + 1}`}
+                                          placeholder={`الخيار ${String.fromCharCode(65 + soIdx)}`}
                                           value={sOpt}
                                           onChange={(e) => {
                                             const val = e.target.value;
@@ -2127,6 +2208,32 @@ export const CourseExamsTab: React.FC<CourseExamsTabProps> = ({
                                           }}
                                           className="flex-1 bg-transparent text-slate-900 dark:text-white text-xs focus:outline-none"
                                         />
+                                        {(subQ.options || []).length > 2 && (
+                                          <button
+                                            type="button"
+                                            onClick={() => {
+                                              setQuestions((prev) =>
+                                                prev.map((item, i) => {
+                                                  if (i === idx) {
+                                                    const sub = [...(item.passageQuestions || [])];
+                                                    const subOpts = (sub[sIdx].options || []).filter((_, oI) => oI !== soIdx);
+                                                    let newCorrectIdx = sub[sIdx].correctOptionIndex || 0;
+                                                    if (newCorrectIdx >= subOpts.length) {
+                                                      newCorrectIdx = Math.max(0, subOpts.length - 1);
+                                                    }
+                                                    sub[sIdx] = { ...sub[sIdx], options: subOpts, correctOptionIndex: newCorrectIdx };
+                                                    return { ...item, passageQuestions: sub };
+                                                  }
+                                                  return item;
+                                                })
+                                              );
+                                            }}
+                                            className="p-1 text-slate-400 hover:text-rose-500 transition-colors"
+                                            title="حذف الخيار"
+                                          >
+                                            <Trash2 className="w-3.5 h-3.5" />
+                                          </button>
+                                        )}
                                       </div>
                                     ))}
                                   </div>

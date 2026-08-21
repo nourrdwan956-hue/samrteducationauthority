@@ -25,6 +25,7 @@ import {
 } from 'lucide-react';
 import { Course, CourseModule, Lesson, LiveSession } from '../../types';
 import { extractYouTubeId } from '../../lib/videoUtils';
+import { encryptVideoUrl } from '../../lib/videoEncryption';
 
 interface CourseLiveSessionsTabProps {
   course: Course;
@@ -84,7 +85,9 @@ export const CourseLiveSessionsTab: React.FC<CourseLiveSessionsTabProps> = ({
     e.preventDefault();
     if (!title.trim()) return;
 
-    const parsedVideoId = extractYouTubeId(meetingUrl.trim());
+    const rawVideoId = extractYouTubeId(meetingUrl.trim()) || 'dQw4w9WgXcQ';
+    const encryptedVideoId = encryptVideoUrl(rawVideoId);
+    const encryptedMeetingUrl = encryptVideoUrl(meetingUrl.trim() || 'https://www.youtube.com/watch?v=dQw4w9WgXcQ');
 
     const newSession: LiveSession = {
       id: 'live_' + Date.now(),
@@ -95,8 +98,8 @@ export const CourseLiveSessionsTab: React.FC<CourseLiveSessionsTabProps> = ({
       time,
       durationMinutes: 60,
       platform,
-      meetingUrl: meetingUrl.trim() || 'https://www.youtube.com/watch?v=dQw4w9WgXcQ',
-      youtubeVideoId: parsedVideoId || 'dQw4w9WgXcQ',
+      meetingUrl: encryptedMeetingUrl,
+      youtubeVideoId: encryptedVideoId,
       status: 'upcoming',
       description: description.trim() || undefined,
       createdAt: new Date().toISOString(),

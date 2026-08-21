@@ -2,6 +2,7 @@ import React, { useState, useMemo } from 'react';
 import { useApp } from '../context/AppContext';
 import { DEFAULT_COURSE_COVER } from './teacher/CourseCoverUploader';
 import { CourseSubscribeModal } from './CourseSubscribeModal';
+import { StudentAssignmentView } from './student/StudentAssignmentView';
 import {
   ShieldCheck,
   PlayCircle,
@@ -38,6 +39,7 @@ import {
   RotateCcw,
   UserCheck,
   ShieldAlert,
+  Lightbulb,
 } from 'lucide-react';
 
 export const CourseDetail: React.FC = () => {
@@ -69,6 +71,7 @@ export const CourseDetail: React.FC = () => {
   } | null>(null);
   const [isSubscribeModalOpen, setIsSubscribeModalOpen] = useState(false);
   const [showParentOverview, setShowParentOverview] = useState(true);
+  const [activeAssignmentId, setActiveAssignmentId] = useState<string | null>(null);
 
   // Accordion state for modules
   const [expandedModules, setExpandedModules] = useState<Record<string, boolean>>({});
@@ -79,6 +82,44 @@ export const CourseDetail: React.FC = () => {
       [moduleId]: !prev[moduleId],
     }));
   };
+
+  // Collect all teachers (Primary + Participating) - MUST be called unconditionally before early returns
+  const allTeachers = useMemo(() => {
+    if (!currentCourse) return [];
+    const list = [];
+    if (currentPlatform) {
+      list.push({
+        id: 'primary',
+        name: currentPlatform.teacherName || 'المعلم المعتمد',
+        title: currentPlatform.teacherTitle || 'رئيس قسم المادة',
+        avatar: currentPlatform.branding?.logo,
+        isPrimary: true,
+      });
+    }
+    if (currentCourse.participatingTeachers) {
+      currentCourse.participatingTeachers.forEach((pt, idx) => {
+        list.push({
+          id: pt.id || `pt-${idx}`,
+          name: pt.name,
+          title: pt.title || pt.subject || currentCourse.subject,
+          avatar: pt.avatar,
+          isPrimary: false,
+        });
+      });
+    }
+    return list;
+  }, [currentCourse, currentPlatform]);
+
+  if (activeAssignmentId) {
+    return (
+      <div className="w-full">
+        <StudentAssignmentView
+          assignmentId={activeAssignmentId}
+          onBack={() => setActiveAssignmentId(null)}
+        />
+      </div>
+    );
+  }
 
   if (!currentCourse) {
     return (
@@ -105,32 +146,6 @@ export const CourseDetail: React.FC = () => {
   const courseExams = (exams || []).filter((e) => e.courseId === currentCourse.id);
   const courseAssignments = (assignments || []).filter((a) => a.courseId === currentCourse.id);
   const courseBankQuestions = (bankQuestions || []).filter((q) => q.courseId === currentCourse.id);
-
-  // Collect all teachers (Primary + Participating)
-  const allTeachers = useMemo(() => {
-    const list = [];
-    if (currentPlatform) {
-      list.push({
-        id: 'primary',
-        name: currentPlatform.teacherName || 'المعلم المعتمد',
-        title: currentPlatform.teacherTitle || 'رئيس قسم المادة',
-        avatar: currentPlatform.branding?.logo,
-        isPrimary: true,
-      });
-    }
-    if (currentCourse.participatingTeachers) {
-      currentCourse.participatingTeachers.forEach((pt, idx) => {
-        list.push({
-          id: pt.id || `pt-${idx}`,
-          name: pt.name,
-          title: pt.title || pt.subject || currentCourse.subject,
-          avatar: pt.avatar,
-          isPrimary: false,
-        });
-      });
-    }
-    return list;
-  }, [currentCourse, currentPlatform]);
 
   // Aggregate stats for Parent & Student overview
   const totalLessonsCount = currentCourse.modules?.reduce((acc, m) => acc + (m.lessons?.length || 0), 0) || 0;
@@ -380,10 +395,17 @@ export const CourseDetail: React.FC = () => {
                     <Video className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
                     <span>{currentCourse.lessonsCount || 12} محتوى متكامل</span>
                   </div>
-                  <div className="flex items-center gap-1.5 bg-white dark:bg-white/5 px-3 py-1.5 rounded-xl border border-slate-200 dark:border-white/5">
-                    <Users className="w-4 h-4 text-amber-600 dark:text-amber-400" />
-                    <span>{currentCourse.enrolledCount} طالب مشترك</span>
-                  </div>
+                  {isEnrolled ? (
+                    <div className="flex items-center gap-1.5 bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 px-3 py-1.5 rounded-xl border border-emerald-500/20">
+                      <ShieldCheck className="w-4 h-4 text-emerald-500" />
+                      <span>أنت مسجل ومفعل في هذا المقرر ✅</span>
+                    </div>
+                  ) : (
+                    <div className="flex items-center gap-1.5 bg-rose-500/10 text-rose-700 dark:text-rose-300 px-3 py-1.5 rounded-xl border border-rose-500/20">
+                      <Lock className="w-4 h-4 text-rose-500" />
+                      <span>غير مشترك في هذا المقرر (مغلق) 🔒</span>
+                    </div>
+                  )}
                 </div>
               </div>
 
@@ -533,13 +555,37 @@ export const CourseDetail: React.FC = () => {
               <div>
                 <h2 className="text-xl font-black text-slate-900 dark:text-white">قاعة المنهج الأكاديمي والدروس المباشرة</h2>
                 {selectedInstructorName ? (
-                  <p className="text-xs font-bold text-indigo-600 dark:text-indigo-400">
-                    مصفى حالياً لعرض دروس الأستاذ: <strong>{selectedInstructorName}</strong> فقط
-                  </p>
+                  <div className="flex flex-wrap items-center gap-2 mt-1">
+                    <span className="text-xs font-bold text-indigo-600 dark:text-indigo-400">
+                      محتوى أستاذ المادة: <strong>{selectedInstructorName}</strong>
+                    </span>
+                    <span className="text-slate-400 text-xs">•</span>
+                    {isEnrolled ? (
+                      <span className="px-2.5 py-0.5 rounded-lg bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 border border-emerald-500/20 text-[11px] font-black">
+                        حالتك: مسجل بالمقرر ومصرح لك بالوصول الكامل ✅
+                      </span>
+                    ) : (
+                      <span className="px-2.5 py-0.5 rounded-lg bg-rose-500/10 text-rose-700 dark:text-rose-300 border border-rose-500/20 text-[11px] font-black">
+                        حالتك: غير مشترك بالمقرر (المحتوى مقفل) 🔒
+                      </span>
+                    )}
+                  </div>
                 ) : (
-                  <p className="text-xs text-slate-500 dark:text-slate-400">
-                    استعرض المحاضرات، الامتحانات والتقييمات، المذكرات، والواجبات.
-                  </p>
+                  <div className="flex flex-wrap items-center gap-2 mt-1">
+                    <p className="text-xs text-slate-500 dark:text-slate-400">
+                      استعرض المحاضرات، الامتحانات والتقييمات، المذكرات، والواجبات.
+                    </p>
+                    <span className="text-slate-400 text-xs">•</span>
+                    {isEnrolled ? (
+                      <span className="px-2.5 py-0.5 rounded-lg bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 border border-emerald-500/20 text-[11px] font-black">
+                        أنت مشترك ومسجل بالمقرر ✅
+                      </span>
+                    ) : (
+                      <span className="px-2.5 py-0.5 rounded-lg bg-rose-500/10 text-rose-700 dark:text-rose-300 border border-rose-500/20 text-[11px] font-black">
+                        غير مسجل (المحتوى مقفل) 🔒
+                      </span>
+                    )}
+                  </div>
                 )}
               </div>
             </div>
@@ -587,231 +633,399 @@ export const CourseDetail: React.FC = () => {
 
           {/* Modules & Lessons Accordion */}
           <div className="space-y-4">
-            {currentCourse.modules?.map((mod, mIdx) => {
-              const rawLessons = mod.lessons || [];
-              
-              // Advanced Filtering
-              const filteredLessons = rawLessons.filter((lesson) => {
-                if (contentFilter === 'video' && !(lesson.type === 'video' || (!lesson.type && lesson.videoUrl))) return false;
-                if (contentFilter === 'exam' && !(lesson.type === 'exam' || !!lesson.examId)) return false;
-                if (contentFilter === 'pdf' && !(lesson.type === 'pdf' || !!lesson.pdfUrl)) return false;
-                if (contentFilter === 'assignment' && !(lesson.type === 'assignment')) return false;
-                
-                if (selectedInstructorName) {
-                  const primaryTeacherName = currentPlatform?.teacherName || 'المعلم المعتمد';
-                  const lessonInstructor = lesson.instructorName || primaryTeacherName;
-                  if (lessonInstructor.toLowerCase() !== selectedInstructorName.toLowerCase()) {
-                    return false;
-                  }
-                }
-                return true;
+            {(() => {
+              const courseAssignments = (assignments || []).filter(
+                (a) => a.isPublished !== false && (a.courseId === currentCourse.id || a.subject === currentCourse.subject || !a.courseId)
+              );
+              const courseExams = (exams || []).filter(
+                (e) => e.isPublished !== false && (e.courseId === currentCourse.id || e.subject === currentCourse.subject || !e.courseId)
+              );
+
+              const isTeacherOrAdmin = currentUser?.role === 'teacher' || currentUser?.role === 'super_admin';
+              const canAccessAll = isEnrolled || isTeacherOrAdmin;
+
+              const baseModules = currentCourse.modules && currentCourse.modules.length > 0
+                ? [...currentCourse.modules]
+                : [
+                    {
+                      id: 'default_main_module',
+                      title: 'المحتوى الأكاديمي والتكليفات المباشرة للمقرر',
+                      description: 'يتضمن هذا القسم كافة المحاضرات، التكليفات، الواجبات، والامتحانات المقررة.',
+                      lessons: [],
+                      isFree: true,
+                    },
+                  ];
+
+              // Check if any assignments or exams are unassigned to modules
+              const assignedAssignmentIds = new Set<string>();
+              const assignedExamIds = new Set<string>();
+
+              baseModules.forEach((m) => {
+                courseAssignments.forEach((a) => {
+                  if (a.moduleId === m.id) assignedAssignmentIds.add(a.id);
+                });
+                courseExams.forEach((e) => {
+                  if (e.moduleId === m.id) assignedExamIds.add(e.id);
+                });
               });
 
-              if (contentFilter !== 'all' && filteredLessons.length === 0) {
-                return null;
-              }
-
-              const isExpanded = expandedModules[mod.id] !== false;
+              const unassignedAssignments = courseAssignments.filter((a) => !assignedAssignmentIds.has(a.id));
+              const unassignedExams = courseExams.filter((e) => !assignedExamIds.has(e.id));
 
               return (
-                <div
-                  key={mod.id}
-                  className="rounded-[32px] bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 overflow-hidden shadow-sm transition-all"
-                >
-                  {/* Module Header */}
-                  <button
-                    onClick={() => toggleModule(mod.id)}
-                    className="w-full p-6 flex items-center justify-between gap-4 text-right cursor-pointer hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors"
-                  >
-                    <div className="flex items-start gap-4">
-                      <div className="w-12 h-12 rounded-2xl bg-cyan-50 dark:bg-cyan-900/20 text-cyan-600 dark:text-cyan-400 flex items-center justify-center shrink-0 border border-cyan-100 dark:border-cyan-800/50">
-                        <span className="text-xl font-black">{mIdx + 1}</span>
-                      </div>
-                      <div>
-                        <h3 className="text-lg font-black text-slate-900 dark:text-white mb-1 flex items-center gap-2">
-                          {mod.title}
-                          {mod.isFree && (
-                            <span className="px-2.5 py-0.5 rounded-lg bg-teal-500/10 text-teal-600 dark:text-teal-400 border border-teal-500/20 text-[10px] font-black uppercase">
-                              مجاني بالكامل
-                            </span>
-                          )}
-                        </h3>
-                        {mod.description && (
-                          <p className="text-xs text-slate-500 dark:text-slate-400 max-w-2xl line-clamp-2">
-                            {mod.description}
-                          </p>
-                        )}
-                        <div className="flex items-center gap-3 mt-2 text-[11px] font-bold text-slate-400">
-                          <span>{filteredLessons.length} عناصر متاحة</span>
-                        </div>
-                      </div>
-                    </div>
-                    <div className="w-10 h-10 rounded-full flex items-center justify-center bg-slate-100 dark:bg-slate-800 text-slate-500 shrink-0">
-                      {isExpanded ? <ChevronUp className="w-5 h-5" /> : <ChevronDown className="w-5 h-5" />}
-                    </div>
-                  </button>
+                <>
+                  {baseModules.map((mod, mIdx) => {
+                    const rawLessons = mod.lessons || [];
+                    
+                    // Module specific assignments & exams
+                    const modAssignments = courseAssignments.filter(
+                      (a) => a.moduleId === mod.id || (mIdx === 0 && unassignedAssignments.some(ua => ua.id === a.id))
+                    );
+                    const modExams = courseExams.filter(
+                      (e) => e.moduleId === mod.id || (mIdx === 0 && unassignedExams.some(ue => ue.id === e.id))
+                    );
 
-                  {/* Module Lessons Body */}
-                  {isExpanded && (
-                    <div className="px-6 pb-6 pt-2 space-y-3 border-t border-slate-100 dark:border-slate-800/50">
-                      {filteredLessons.length === 0 ? (
-                        <div className="p-6 text-center rounded-2xl bg-slate-50 dark:bg-slate-950 border border-dashed border-slate-200 dark:border-slate-800">
-                          <p className="text-xs text-slate-500 dark:text-slate-400 font-bold">
-                            {selectedInstructorName
-                              ? `لم يقم الأستاذ ${selectedInstructorName} برفع محتوى خاص به في هذه الوحدة حتى الآن.`
-                              : 'لا توجد عناصر مطابقة للفلتر المختار داخل هذه الوحدة.'}
-                          </p>
-                        </div>
-                      ) : (
-                        filteredLessons.map((lesson) => {
-                          const isTeacherOrAdmin = currentUser?.role === 'teacher' || currentUser?.role === 'super_admin';
-                          const isDraft = lesson.status === 'draft' || lesson.isPublished === false;
-                          const isScheduledFuture = lesson.scheduledDate && new Date(lesson.scheduledDate).getTime() > Date.now();
-                          
-                          if (isDraft && !isTeacherOrAdmin) return null;
+                    // Filter lessons according to contentFilter
+                    const filteredLessons = rawLessons.filter((lesson) => {
+                      if (contentFilter === 'video' && !(lesson.type === 'video' || (!lesson.type && lesson.videoUrl))) return false;
+                      if (contentFilter === 'exam' && !(lesson.type === 'exam' || !!lesson.examId)) return false;
+                      if (contentFilter === 'pdf' && !(lesson.type === 'pdf' || !!lesson.pdfUrl)) return false;
+                      if (contentFilter === 'assignment' && !(lesson.type === 'assignment')) return false;
 
-                          const canAccess = (isEnrolled || lesson.isFreePreview) && (!isScheduledFuture || isTeacherOrAdmin);
-                          
-                          const isVideo = lesson.type === 'video' || (!lesson.type && lesson.videoUrl);
-                          const isExam = lesson.type === 'exam' || !!lesson.examId;
-                          const isPdf = lesson.type === 'pdf' || !!lesson.pdfUrl;
+                      if (selectedInstructorName) {
+                        const primaryTeacherName = currentPlatform?.teacherName || 'المعلم المعتمد';
+                        const lessonInstructor = lesson.instructorName || primaryTeacherName;
+                        if (lessonInstructor.toLowerCase() !== selectedInstructorName.toLowerCase()) {
+                          return false;
+                        }
+                      }
+                      return true;
+                    });
 
-                          const typeIcon = isVideo ? PlayCircle : isExam ? FileCheck : FileText;
-                          
-                          const typeColorClass = isExam
-                            ? 'text-rose-500 bg-rose-50 dark:bg-rose-500/10 border-rose-200 dark:border-rose-900/40'
-                            : isPdf
-                            ? 'text-amber-500 bg-amber-50 dark:bg-amber-500/10 border-amber-200 dark:border-amber-900/40'
-                            : 'text-cyan-500 bg-cyan-50 dark:bg-cyan-500/10 border-cyan-200 dark:border-cyan-900/40';
+                    // Determine if modAssignments or modExams match filter
+                    const showAssignments = (contentFilter === 'all' || contentFilter === 'assignment') && modAssignments.length > 0;
+                    const showExams = (contentFilter === 'all' || contentFilter === 'exam') && modExams.length > 0;
+                    const showLessons = contentFilter !== 'assignment' && filteredLessons.length > 0;
 
-                          return (
-                            <div
-                              key={lesson.id}
-                              className="p-4 rounded-2xl border border-slate-100 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 flex flex-col sm:flex-row sm:items-center justify-between gap-4 group hover:border-cyan-300 dark:hover:border-cyan-800 transition-colors"
-                            >
-                              <div className="flex items-center gap-4">
-                                <div className={`w-12 h-12 rounded-xl flex items-center justify-center shrink-0 border ${typeColorClass}`}>
-                                  {React.createElement(typeIcon, { className: "w-6 h-6" })}
-                                </div>
-                                <div>
-                                  <div className="flex flex-wrap items-center gap-2 mb-1">
-                                    <h4 className="text-sm font-black text-slate-900 dark:text-white">
-                                      {lesson.title}
-                                    </h4>
+                    const totalItemsInMod =
+                      (showLessons ? filteredLessons.length : 0) +
+                      (showAssignments ? modAssignments.length : 0) +
+                      (showExams ? modExams.length : 0);
 
-                                    {lesson.isFreePreview && (
-                                      <span className="px-2 py-0.5 rounded-lg bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20 text-[10px] font-black uppercase">
-                                        معاينة مجانية ✅
-                                      </span>
-                                    )}
+                    if (contentFilter !== 'all' && totalItemsInMod === 0) {
+                      return null;
+                    }
 
-                                    {isExam && (
-                                      <span className="px-2 py-0.5 rounded-lg bg-rose-500/10 text-rose-600 dark:text-rose-400 border border-rose-500/20 text-[10px] font-black">
-                                        امتحان وتقييم ⏰
-                                      </span>
-                                    )}
+                    const isExpanded = expandedModules[mod.id] !== false;
 
-                                    {isScheduledFuture && (
-                                      <span className="px-2 py-0.5 rounded-lg bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 border border-indigo-500/20 text-[10px] font-black flex items-center gap-1">
-                                        <Clock className="w-3 h-3" /> متاح {new Date(lesson.scheduledDate!).toLocaleDateString('ar-EG')}
-                                      </span>
-                                    )}
-                                  </div>
-                                  <div className="flex items-center gap-2 text-[11px] font-bold text-slate-500 dark:text-slate-400">
-                                    {lesson.durationMinutes && <span>⏱️ {lesson.durationMinutes} دقيقة</span>}
-                                    {lesson.durationMinutes && <span>•</span>}
-                                    <span>👨‍🏫 {lesson.instructorName || currentPlatform?.teacherName || 'المعلم المعتمد'}</span>
-                                  </div>
-                                </div>
-                              </div>
-
-                              <div className="shrink-0 flex justify-end">
-                                {canAccess ? (
-                                  <button
-                                    onClick={() => {
-                                      setSelectedLessonId(lesson.id);
-                                      if (lesson.type === 'exam' || lesson.examId) {
-                                        if (lesson.examId) setSelectedExamId(lesson.examId);
-                                        setCurrentView('exam_view');
-                                      } else {
-                                        setCurrentView('lesson_player');
-                                      }
-                                    }}
-                                    className={`w-full sm:w-auto px-5 py-2.5 rounded-xl font-black text-xs transition-all shadow-sm cursor-pointer flex items-center justify-center gap-2 ${
-                                      isExam
-                                        ? 'bg-rose-600 hover:bg-rose-500 text-white shadow-rose-600/20'
-                                        : 'bg-cyan-600 dark:bg-white hover:bg-cyan-500 dark:hover:bg-slate-100 text-white dark:text-slate-900'
-                                    }`}
-                                  >
-                                    <span>{isExam ? 'بدء الامتحان' : 'مشاهدة المحتوى'}</span>
-                                    <ArrowRight className="w-4 h-4" />
-                                  </button>
+                    return (
+                      <div
+                        key={mod.id}
+                        className="rounded-[32px] bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 overflow-hidden shadow-sm transition-all"
+                      >
+                        {/* Module Header */}
+                        <button
+                          onClick={() => toggleModule(mod.id)}
+                          className="w-full p-6 flex items-center justify-between gap-4 text-right cursor-pointer hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors"
+                        >
+                          <div className="flex items-start gap-4">
+                            <div className="w-12 h-12 rounded-2xl bg-cyan-50 dark:bg-cyan-900/20 text-cyan-600 dark:text-cyan-400 flex items-center justify-center shrink-0 border border-cyan-100 dark:border-cyan-800/50">
+                              <span className="text-xl font-black">{mIdx + 1}</span>
+                            </div>
+                            <div>
+                              <h3 className="text-lg font-black text-slate-900 dark:text-white mb-1 flex items-center gap-2 flex-wrap">
+                                {mod.title}
+                                {canAccessAll ? (
+                                  <span className="px-2.5 py-0.5 rounded-lg bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 border border-emerald-500/20 text-[10px] font-black">
+                                    مسجل ومتاح للوصول ✅
+                                  </span>
+                                ) : mod.isFree ? (
+                                  <span className="px-2.5 py-0.5 rounded-lg bg-teal-500/10 text-teal-600 dark:text-teal-400 border border-teal-500/20 text-[10px] font-black uppercase">
+                                    وحدة مجانية للجميع 🆓
+                                  </span>
                                 ) : (
-                                  <button
-                                    onClick={() => {
-                                      setLockedItemModal({
-                                        title: lesson.title,
-                                        typeLabel: isExam ? 'امتحان محمي' : 'محتوى فيديو / ملف',
-                                        infoLabel: 'مطلوب الاشتراك في المقرر',
-                                      });
-                                    }}
-                                    className="w-full sm:w-auto px-5 py-2.5 rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400 font-bold text-xs transition-colors cursor-pointer flex items-center justify-center gap-2 hover:bg-rose-50 dark:hover:bg-rose-900/20 hover:text-rose-600 dark:hover:text-rose-400 border border-transparent hover:border-rose-200 dark:hover:border-rose-800"
-                                  >
-                                    <Lock className="w-4 h-4 text-rose-500" />
-                                    <span>محتوى مقفل</span>
-                                  </button>
+                                  <span className="px-2.5 py-0.5 rounded-lg bg-rose-500/10 text-rose-700 dark:text-rose-300 border border-rose-500/20 text-[10px] font-black">
+                                    مغلقة (تتطلب الاشتراك) 🔒
+                                  </span>
                                 )}
+                              </h3>
+                              {mod.description && (
+                                <p className="text-xs text-slate-500 dark:text-slate-400 max-w-2xl line-clamp-2">
+                                  {mod.description}
+                                </p>
+                              )}
+                              <div className="flex items-center gap-3 mt-2 text-[11px] font-bold text-slate-400">
+                                <span>{totalItemsInMod} عناصر تفاعلية</span>
+                                <span>•</span>
+                                <span className={canAccessAll || mod.isFree ? 'text-emerald-600 dark:text-emerald-400 font-bold' : 'text-slate-400'}>
+                                  {canAccessAll ? 'محتوى الوحدة مفتوح بالكامل' : mod.isFree ? 'محتوى الوحدة مجاني ومفتوح' : 'المحتوى مقفل حتى تفعيل الاشتراك'}
+                                </span>
                               </div>
                             </div>
-                          );
-                        })
-                      )}
-                    </div>
-                  )}
-                </div>
+                          </div>
+                          <div className="w-10 h-10 rounded-full flex items-center justify-center bg-slate-100 dark:bg-slate-800 text-slate-500 shrink-0">
+                            {isExpanded ? <ChevronUp className="w-5 h-5" /> : <ChevronDown className="w-5 h-5" />}
+                          </div>
+                        </button>
+
+                        {/* Module Lessons & Assignments Body */}
+                        {isExpanded && (
+                          <div className="px-6 pb-6 pt-2 space-y-3 border-t border-slate-100 dark:border-slate-800/50">
+                            {totalItemsInMod === 0 ? (
+                              <div className="p-6 text-center rounded-2xl bg-slate-50 dark:bg-slate-950 border border-dashed border-slate-200 dark:border-slate-800">
+                                <p className="text-xs text-slate-500 dark:text-slate-400 font-bold">
+                                  {selectedInstructorName
+                                    ? `لم يقم الأستاذ ${selectedInstructorName} برفع محتوى خاص به في هذه الوحدة حتى الآن.`
+                                    : 'لا توجد عناصر مطابقة للفلتر المختار داخل هذه الوحدة.'}
+                                </p>
+                              </div>
+                            ) : (
+                              <>
+                                {/* Render Assignments */}
+                                {showAssignments &&
+                                  modAssignments.map((asg) => {
+                                    const canAccessAsg = canAccessAll || mod.isFree;
+                                    return (
+                                      <div
+                                        key={`asg_${asg.id}`}
+                                        className="p-4 rounded-2xl border border-teal-500/30 dark:border-teal-500/20 bg-teal-500/5 dark:bg-teal-950/20 flex flex-col sm:flex-row sm:items-center justify-between gap-4 group hover:border-teal-500 transition-colors"
+                                      >
+                                        <div className="flex items-start gap-4">
+                                          <div className="w-12 h-12 rounded-xl flex items-center justify-center shrink-0 border bg-teal-500/20 text-teal-600 dark:text-teal-400 border-teal-500/30">
+                                            <CheckCircle2 className="w-6 h-6" />
+                                          </div>
+                                          <div>
+                                            <div className="flex flex-wrap items-center gap-2 mb-1">
+                                              <h4 className="text-sm font-black text-slate-900 dark:text-white">
+                                                {asg.title}
+                                              </h4>
+                                              <span className="px-2 py-0.5 rounded-lg bg-teal-500/20 text-teal-700 dark:text-teal-300 border border-teal-500/30 text-[10px] font-black">
+                                                واجب وتكليف دراسي 📝
+                                              </span>
+                                              {asg.allowConceptSheet && (
+                                                <span className="px-2 py-0.5 rounded-lg bg-amber-500/20 text-amber-700 dark:text-amber-300 border border-amber-500/30 text-[10px] font-black flex items-center gap-1">
+                                                  <Lightbulb className="w-3 h-3 text-amber-500" /> ورقة مفاهيم 📑
+                                                </span>
+                                              )}
+                                            </div>
+                                            <p className="text-xs text-slate-500 dark:text-slate-400 max-w-xl line-clamp-1 mb-1">
+                                              {asg.description || 'تمرين واختبار فهم للتأكد من استيعاب قوانين ومفاهيم الدرس.'}
+                                            </p>
+                                            <div className="flex items-center gap-2 text-[11px] font-bold text-slate-500 dark:text-slate-400">
+                                              <span>⏱️ {asg.durationMinutes || 30} دقيقة</span>
+                                              <span>•</span>
+                                              <span>📊 {asg.questions?.length || 0} سؤال ({asg.totalPoints || 0} درجة)</span>
+                                            </div>
+                                          </div>
+                                        </div>
+
+                                        <div className="shrink-0 flex justify-end">
+                                          {canAccessAsg ? (
+                                            <button
+                                              onClick={() => setActiveAssignmentId(asg.id)}
+                                              className="w-full sm:w-auto px-5 py-2.5 rounded-xl bg-gradient-to-r from-teal-600 to-emerald-600 hover:from-teal-500 hover:to-emerald-500 text-white font-black text-xs transition-all shadow-md shadow-teal-900/20 cursor-pointer flex items-center justify-center gap-2"
+                                            >
+                                              <span>بدء حل التكليف 🚀</span>
+                                              <ArrowRight className="w-4 h-4" />
+                                            </button>
+                                          ) : (
+                                            <button
+                                              onClick={() => {
+                                                setLockedItemModal({
+                                                  title: asg.title,
+                                                  typeLabel: 'تكليف وواجب دراسي',
+                                                  infoLabel: 'مطلوب الاشتراك في المقرر لفتح الواجبات',
+                                                });
+                                              }}
+                                              className="w-full sm:w-auto px-5 py-2.5 rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400 font-bold text-xs transition-colors cursor-pointer flex items-center justify-center gap-2 hover:bg-rose-50 dark:hover:bg-rose-900/20 hover:text-rose-600 border border-transparent hover:border-rose-200"
+                                            >
+                                              <Lock className="w-4 h-4 text-rose-500" />
+                                              <span>تكليف مقفل</span>
+                                            </button>
+                                          )}
+                                        </div>
+                                      </div>
+                                    );
+                                  })}
+
+                                {/* Render Exams */}
+                                {showExams &&
+                                  modExams.map((ex) => {
+                                    const canAccessEx = canAccessAll || mod.isFree;
+                                    return (
+                                      <div
+                                        key={`exam_${ex.id}`}
+                                        className="p-4 rounded-2xl border border-rose-500/30 dark:border-rose-500/20 bg-rose-500/5 dark:bg-rose-950/20 flex flex-col sm:flex-row sm:items-center justify-between gap-4 group hover:border-rose-500 transition-colors"
+                                      >
+                                        <div className="flex items-start gap-4">
+                                          <div className="w-12 h-12 rounded-xl flex items-center justify-center shrink-0 border bg-rose-500/20 text-rose-600 dark:text-rose-400 border-rose-500/30">
+                                            <FileCheck className="w-6 h-6" />
+                                          </div>
+                                          <div>
+                                            <div className="flex flex-wrap items-center gap-2 mb-1">
+                                              <h4 className="text-sm font-black text-slate-900 dark:text-white">
+                                                {ex.title}
+                                              </h4>
+                                              <span className="px-2 py-0.5 rounded-lg bg-rose-500/20 text-rose-700 dark:text-rose-300 border border-rose-500/30 text-[10px] font-black">
+                                                امتحان وتقييم رسمي ⏰
+                                              </span>
+                                            </div>
+                                            <p className="text-xs text-slate-500 dark:text-slate-400 max-w-xl line-clamp-1 mb-1">
+                                              {ex.description || 'امتحان شامل لقياس مستوى الفهم والتحصيل الأكاديمي.'}
+                                            </p>
+                                            <div className="flex items-center gap-2 text-[11px] font-bold text-slate-500 dark:text-slate-400">
+                                              <span>⏱️ {ex.durationMinutes} دقيقة</span>
+                                              <span>•</span>
+                                              <span>📊 {ex.questions?.length || 0} سؤال ({ex.totalPoints || 0} درجة)</span>
+                                            </div>
+                                          </div>
+                                        </div>
+
+                                        <div className="shrink-0 flex justify-end">
+                                          {canAccessEx ? (
+                                            <button
+                                              onClick={() => {
+                                                setSelectedExamId(ex.id);
+                                                setCurrentView('exam_view');
+                                              }}
+                                              className="w-full sm:w-auto px-5 py-2.5 rounded-xl bg-rose-600 hover:bg-rose-500 text-white font-black text-xs transition-all shadow-md shadow-rose-600/20 cursor-pointer flex items-center justify-center gap-2"
+                                            >
+                                              <span>بدء الامتحان ⏰</span>
+                                              <ArrowRight className="w-4 h-4" />
+                                            </button>
+                                          ) : (
+                                            <button
+                                              onClick={() => {
+                                                setLockedItemModal({
+                                                  title: ex.title,
+                                                  typeLabel: 'امتحان رسمي محمي',
+                                                  infoLabel: 'مطلوب الاشتراك في المقرر لدخول الامتحان',
+                                                });
+                                              }}
+                                              className="w-full sm:w-auto px-5 py-2.5 rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400 font-bold text-xs transition-colors cursor-pointer flex items-center justify-center gap-2 hover:bg-rose-50 dark:hover:bg-rose-900/20 hover:text-rose-600 border border-transparent hover:border-rose-200"
+                                            >
+                                              <Lock className="w-4 h-4 text-rose-500" />
+                                              <span>امتحان مقفل</span>
+                                            </button>
+                                          )}
+                                        </div>
+                                      </div>
+                                    );
+                                  })}
+
+                                {/* Render Standard Module Lessons */}
+                                {showLessons &&
+                                  filteredLessons.map((lesson) => {
+                                    const isDraft = lesson.status === 'draft' || lesson.isPublished === false;
+                                    const isScheduledFuture = lesson.scheduledDate && new Date(lesson.scheduledDate).getTime() > Date.now();
+                                    
+                                    if (isDraft && !isTeacherOrAdmin) return null;
+
+                                    const canAccess = (canAccessAll || lesson.isFreePreview) && (!isScheduledFuture || isTeacherOrAdmin);
+                                    
+                                    const isVideo = lesson.type === 'video' || (!lesson.type && lesson.videoUrl);
+                                    const isExam = lesson.type === 'exam' || !!lesson.examId;
+                                    const isPdf = lesson.type === 'pdf' || !!lesson.pdfUrl;
+
+                                    const typeIcon = isVideo ? PlayCircle : isExam ? FileCheck : FileText;
+                                    
+                                    const typeColorClass = isExam
+                                      ? 'text-rose-500 bg-rose-50 dark:bg-rose-500/10 border-rose-200 dark:border-rose-900/40'
+                                      : isPdf
+                                      ? 'text-amber-500 bg-amber-50 dark:bg-amber-500/10 border-amber-200 dark:border-amber-900/40'
+                                      : 'text-cyan-500 bg-cyan-50 dark:bg-cyan-500/10 border-cyan-200 dark:border-cyan-900/40';
+
+                                    return (
+                                      <div
+                                        key={lesson.id}
+                                        className="p-4 rounded-2xl border border-slate-100 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 flex flex-col sm:flex-row sm:items-center justify-between gap-4 group hover:border-cyan-300 dark:hover:border-cyan-800 transition-colors"
+                                      >
+                                        <div className="flex items-center gap-4">
+                                          <div className={`w-12 h-12 rounded-xl flex items-center justify-center shrink-0 border ${typeColorClass}`}>
+                                            {React.createElement(typeIcon, { className: "w-6 h-6" })}
+                                          </div>
+                                          <div>
+                                            <div className="flex flex-wrap items-center gap-2 mb-1">
+                                              <h4 className="text-sm font-black text-slate-900 dark:text-white">
+                                                {lesson.title}
+                                              </h4>
+
+                                              {lesson.isFreePreview && (
+                                                <span className="px-2 py-0.5 rounded-lg bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20 text-[10px] font-black uppercase">
+                                                  معاينة مجانية ✅
+                                                </span>
+                                              )}
+
+                                              {isExam && (
+                                                <span className="px-2 py-0.5 rounded-lg bg-rose-500/10 text-rose-600 dark:text-rose-400 border border-rose-500/20 text-[10px] font-black">
+                                                  امتحان وتقييم ⏰
+                                                </span>
+                                              )}
+
+                                              {isScheduledFuture && (
+                                                <span className="px-2 py-0.5 rounded-lg bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 border border-indigo-500/20 text-[10px] font-black flex items-center gap-1">
+                                                  <Clock className="w-3 h-3" /> متاح {new Date(lesson.scheduledDate!).toLocaleDateString('ar-EG')}
+                                                </span>
+                                              )}
+                                            </div>
+                                            <div className="flex items-center gap-2 text-[11px] font-bold text-slate-500 dark:text-slate-400">
+                                              {lesson.durationMinutes && <span>⏱️ {lesson.durationMinutes} دقيقة</span>}
+                                              {lesson.durationMinutes && <span>•</span>}
+                                              <span>👨‍🏫 {lesson.instructorName || currentPlatform?.teacherName || 'المعلم المعتمد'}</span>
+                                            </div>
+                                          </div>
+                                        </div>
+
+                                        <div className="shrink-0 flex justify-end">
+                                          {canAccess ? (
+                                            <button
+                                              onClick={() => {
+                                                setSelectedLessonId(lesson.id);
+                                                if (lesson.type === 'exam' || lesson.examId) {
+                                                  if (lesson.examId) setSelectedExamId(lesson.examId);
+                                                  setCurrentView('exam_view');
+                                                } else {
+                                                  setCurrentView('lesson_player');
+                                                }
+                                              }}
+                                              className={`w-full sm:w-auto px-5 py-2.5 rounded-xl font-black text-xs transition-all shadow-sm cursor-pointer flex items-center justify-center gap-2 ${
+                                                isExam
+                                                  ? 'bg-rose-600 hover:bg-rose-500 text-white shadow-rose-600/20'
+                                                  : 'bg-cyan-600 dark:bg-white hover:bg-cyan-500 dark:hover:bg-slate-100 text-white dark:text-slate-900'
+                                              }`}
+                                            >
+                                              <span>{isExam ? 'بدء الامتحان' : 'مشاهدة المحتوى'}</span>
+                                              <ArrowRight className="w-4 h-4" />
+                                            </button>
+                                          ) : (
+                                            <button
+                                              onClick={() => {
+                                                setLockedItemModal({
+                                                  title: lesson.title,
+                                                  typeLabel: isExam ? 'امتحان محمي' : 'محتوى فيديو / ملف',
+                                                  infoLabel: 'مطلوب الاشتراك في المقرر',
+                                                });
+                                              }}
+                                              className="w-full sm:w-auto px-5 py-2.5 rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400 font-bold text-xs transition-colors cursor-pointer flex items-center justify-center gap-2 hover:bg-rose-50 dark:hover:bg-rose-900/20 hover:text-rose-600 dark:hover:text-rose-400 border border-transparent hover:border-rose-200 dark:hover:border-rose-800"
+                                            >
+                                              <Lock className="w-4 h-4 text-rose-500" />
+                                              <span>محتوى مقفل</span>
+                                            </button>
+                                          )}
+                                        </div>
+                                      </div>
+                                    );
+                                  })}
+                              </>
+                            )}
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
+                </>
               );
-            })}
-            
-            {/* Rich Academic Overview Banner if Course is empty */}
-            {(!currentCourse.modules || currentCourse.modules.length === 0) && (
-              <div className="p-8 sm:p-12 text-center rounded-[32px] border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-xl space-y-6">
-                <div className="w-20 h-20 rounded-3xl bg-cyan-50 dark:bg-cyan-950/40 border border-cyan-200 dark:border-cyan-800/60 text-cyan-600 dark:text-cyan-400 flex items-center justify-center mx-auto shadow-sm">
-                  <Calendar className="w-10 h-10" />
-                </div>
-
-                <div className="space-y-2 max-w-xl mx-auto">
-                  <span className="px-3 py-1 rounded-full bg-cyan-500/10 text-cyan-600 dark:text-cyan-400 text-xs font-black border border-cyan-500/20">
-                    الأجندة الأكاديمية ونشر المحتوى
-                  </span>
-                  <h3 className="text-xl sm:text-2xl font-black text-slate-900 dark:text-white">
-                    يتم إعداد ورفع محتوى المنهج حالياً
-                  </h3>
-                  <p className="text-xs sm:text-sm text-slate-500 dark:text-slate-400 leading-relaxed">
-                    يقوم أستاذ المادة ({currentPlatform?.teacherName || 'المعلم المعتمد'}) برفع محاضرات ومذكرات المقرر بانتظام وفق الجدول الأكاديمي المعتمد.
-                  </p>
-                </div>
-
-                <div className="flex flex-wrap items-center justify-center gap-3 pt-2">
-                  <button
-                    onClick={() => {
-                      addToast('info', 'تم إرسال طلب تنبيه 🔔', 'سيتم إشعارك فور رفع المحاضرة القادمة في هذا المقرر.');
-                    }}
-                    className="px-5 py-3 rounded-2xl bg-cyan-600 hover:bg-cyan-500 text-white font-black text-xs transition-all shadow-md shadow-cyan-600/20 cursor-pointer flex items-center gap-2"
-                  >
-                    <Sparkles className="w-4 h-4" />
-                    <span>تفعيل تنبيهات رفع المحاضرات</span>
-                  </button>
-
-                  <button
-                    onClick={() => setCurrentView('student_portal')}
-                    className="px-5 py-3 rounded-2xl bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 text-slate-700 dark:text-slate-300 font-bold text-xs transition-colors cursor-pointer flex items-center gap-2"
-                  >
-                    <Home className="w-4 h-4" />
-                    <span>العودة للوحة الطالب</span>
-                  </button>
-                </div>
-              </div>
-            )}
+            })()}
           </div>
         </div>
       )}

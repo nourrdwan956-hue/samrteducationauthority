@@ -201,9 +201,9 @@ export const HomeHero: React.FC = () => {
             </div>
             <div className={`p-3.5 rounded-2xl border text-center ${isLight ? 'bg-white border-slate-200 shadow-sm' : 'bg-slate-900/90 border-slate-800'}`}>
               <div className="text-lg sm:text-2xl font-black text-amber-500">
-                {totalRealEnrollments > 0 ? `+${totalRealEnrollments}` : 'آلاف'}
+                مؤمنة 100%
               </div>
-              <div className="text-[11px] font-bold text-slate-500 dark:text-slate-400">اشتراك مفعل للطلاب</div>
+              <div className="text-[11px] font-bold text-slate-500 dark:text-slate-400">بيئة دراسية متكاملة</div>
             </div>
             <div className={`p-3.5 rounded-2xl border text-center ${isLight ? 'bg-white border-slate-200 shadow-sm' : 'bg-slate-900/90 border-slate-800'}`}>
               <div className="text-lg sm:text-2xl font-black text-sky-500">100%</div>
@@ -391,7 +391,7 @@ export const HomeHero: React.FC = () => {
                         {isBestSeller ? (
                           <span className="px-2.5 py-1 rounded-xl text-[11px] font-black bg-amber-400 text-slate-950 shadow-md flex items-center gap-1">
                             <Sparkles className="w-3 h-3 fill-slate-950" />
-                            <span>الأكثر طلباً ({course.enrolledCount} طالب)</span>
+                            <span>كورس متميز وموصى به ⭐</span>
                           </span>
                         ) : (
                           <span className="px-2.5 py-1 rounded-xl text-[11px] font-black bg-cyan-500 text-slate-950 shadow-md flex items-center gap-1">

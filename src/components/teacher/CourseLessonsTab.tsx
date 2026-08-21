@@ -34,6 +34,7 @@ import {
 } from 'lucide-react';
 import { Course, CourseModule, Lesson, LessonType } from '../../types';
 import { extractYouTubeId } from '../../lib/videoUtils';
+import { encryptVideoUrl } from '../../lib/videoEncryption';
 import { SecureVideoPlayer } from '../SecureVideoPlayer';
 
 interface CourseLessonsTabProps {
@@ -307,6 +308,8 @@ export const CourseLessonsTab: React.FC<CourseLessonsTabProps> = ({
     if (!selectedModuleId || !lessonTitle.trim()) return;
 
     const parsedVideoId = extractYouTubeId(youtubeVideoId.trim() || videoUrl.trim());
+    const encryptedVideoId = parsedVideoId ? encryptVideoUrl(parsedVideoId) : undefined;
+    const encryptedDirectUrl = videoUrl.trim() ? encryptVideoUrl(videoUrl.trim()) : undefined;
 
     const newLessonData: Partial<Lesson> = {
       title: lessonTitle.trim(),
@@ -318,9 +321,9 @@ export const CourseLessonsTab: React.FC<CourseLessonsTabProps> = ({
       scheduledDate: lessonScheduledDate || undefined,
       scheduledPublishDate: lessonScheduledDate || undefined,
       isScheduled: !!lessonScheduledDate,
-      youtubeVideoId: parsedVideoId || undefined,
+      youtubeVideoId: encryptedVideoId,
       playerMode,
-      videoUrl: videoUrl.trim() || undefined,
+      videoUrl: encryptedDirectUrl,
       pdfTitle: pdfTitle.trim() || undefined,
       pdfUrl: pdfUrl.trim() || (lessonType === 'pdf' ? 'https://example.com/lecture-summary.pdf' : undefined),
       description: lessonDescription.trim() || undefined,

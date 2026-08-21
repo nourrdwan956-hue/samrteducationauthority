@@ -8,6 +8,7 @@ import {
   ArrowLeft,
   Sparkles,
   CheckCircle2,
+  ShieldCheck,
 } from 'lucide-react';
 
 export const PlatformMarketplace: React.FC = () => {
@@ -189,13 +190,13 @@ export const PlatformMarketplace: React.FC = () => {
                     isLight ? 'border-slate-100 text-slate-500' : 'border-slate-800 text-slate-400'
                   }`}
                 >
-                  <span className="flex items-center gap-1.5">
-                    <Users className="w-4 h-4 text-cyan-500" />
-                    {plat.totalStudentsCount.toLocaleString()} طالب
+                  <span className="flex items-center gap-1.5 font-bold text-emerald-600 dark:text-emerald-400">
+                    <ShieldCheck className="w-4 h-4 text-emerald-500" />
+                    منصة معتمدة وموثقة
                   </span>
-                  <span className="flex items-center gap-1.5">
-                    <BookOpen className="w-4 h-4 text-sky-500" />
-                    {plat.totalCoursesCount} كورسات
+                  <span className="flex items-center gap-1.5 font-bold">
+                    <BookOpen className="w-4 h-4 text-cyan-500" />
+                    مقررات ومناهج دراسية
                   </span>
                 </div>
 

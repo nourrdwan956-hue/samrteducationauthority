@@ -1,7 +1,15 @@
-import React, { useState, useEffect, useRef, useCallback } from 'react';
+import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { useApp } from '../context/AppContext';
 import { Lesson, Course, StudentNote, LessonQuestion } from '../types';
 import { extractYouTubeId } from '../lib/videoUtils';
+import { decryptVideoUrl, resolveYouTubeId, getObfuscatedEmbedUrl } from '../lib/videoEncryption';
+import { attachDRMHardwareProtection } from '../lib/videoDRM';
+import {
+  initScreenRecordingProtection,
+  subscribeToScreenProtection,
+  resetRecordingAlert,
+  SecurityStatus,
+} from '../lib/screenProtection';
 import {
   ShieldAlert,
   ShieldCheck,
@@ -216,12 +224,28 @@ export const SecureVideoPlayer: React.FC<SecureVideoPlayerProps> = ({
     );
   }
 
+  // Security & Screen Capture Protection State
+  const [securityStatus, setSecurityStatus] = useState<SecurityStatus>({
+    isRecordingDetected: false,
+    isWindowBlurred: false,
+    isDevToolsOpen: false,
+  });
+
+
+
+  // Decrypted Video Link Resolution
+  const resolvedDirectUrl = useMemo(() => {
+    return decryptVideoUrl(lesson.videoUrl || '');
+  }, [lesson.videoUrl]);
+
   // Determine media provider (Direct MP4 vs YouTube)
   const isDirectVideo =
     lesson.videoProvider === 'direct' ||
-    (lesson.videoUrl && (lesson.videoUrl.endsWith('.mp4') || lesson.videoUrl.endsWith('.webm') || lesson.videoUrl.includes('commondatastorage')));
+    (resolvedDirectUrl && (resolvedDirectUrl.endsWith('.mp4') || resolvedDirectUrl.endsWith('.webm') || resolvedDirectUrl.includes('commondatastorage')));
 
-  const rawVideoId = extractYouTubeId(lesson.youtubeVideoId || lesson.videoUrl || 'dQw4w9WgXcQ');
+  const platformEmbedUrl = useMemo(() => {
+    return getObfuscatedEmbedUrl(lesson.youtubeVideoId || lesson.videoUrl || 'dQw4w9WgXcQ');
+  }, [lesson.youtubeVideoId, lesson.videoUrl]);
 
   // Initial duration
   const initialDuration =
@@ -513,10 +537,26 @@ export const SecureVideoPlayer: React.FC<SecureVideoPlayerProps> = ({
     setCurrentView('course_detail');
   };
 
-  // Isolated, clean, tamper-proof YouTube Embed URL
-  const platformEmbedUrl = `https://www.youtube-nocookie.com/embed/${rawVideoId}?autoplay=1&controls=0&rel=0&modestbranding=1&enablejsapi=1&iv_load_policy=3&cc_load_policy=0&disablekb=1&playsinline=1&fs=0&showinfo=0&origin=${encodeURIComponent(
-    typeof window !== 'undefined' ? window.location.origin : ''
-  )}`;
+  // Screen Protection Effect & Listeners
+  useEffect(() => {
+    const cleanupProtection = initScreenRecordingProtection();
+    const unsubscribe = subscribeToScreenProtection((status) => {
+      setSecurityStatus(status);
+      if (status.isRecordingDetected || status.isDevToolsOpen || status.isWindowBlurred) {
+        if (isDirectVideo && directVideoRef.current) {
+          directVideoRef.current.pause();
+        } else {
+          sendIframeCommand('pauseVideo');
+        }
+        setIsPlaying(false);
+      }
+    });
+
+    return () => {
+      unsubscribe();
+      cleanupProtection();
+    };
+  }, [isDirectVideo, sendIframeCommand]);
 
   // Keyboard Shortcuts & Security Protections
   useEffect(() => {
@@ -812,12 +852,19 @@ export const SecureVideoPlayer: React.FC<SecureVideoPlayerProps> = ({
         className="relative w-full rounded-3xl overflow-hidden bg-slate-950 border border-slate-800 shadow-2xl group select-none aspect-video"
       >
         {/* VIDEO STREAM ENGINE: Direct MP4 or Secure Edge-Masked YouTube IFrame */}
-        <div className="relative w-full h-full overflow-hidden bg-black flex items-center justify-center">
-          {isDirectVideo ? (
-            lesson.videoUrl ? (
+        <div className="relative w-full h-full overflow-hidden bg-slate-950 flex items-center justify-center select-none">
+          {securityStatus.isRecordingDetected || securityStatus.isDevToolsOpen || securityStatus.isWindowBlurred || isTabInactive ? (
+            <div className="w-full h-full bg-slate-950 flex flex-col items-center justify-center p-6 text-center select-none z-10">
+              <div className="w-16 h-16 rounded-2xl bg-rose-500/10 border border-rose-500/30 flex items-center justify-center text-rose-400 mb-3 animate-pulse">
+                <ShieldAlert className="w-8 h-8" />
+              </div>
+              <p className="text-sm font-bold text-slate-300">تم حجب بث الفيديو لحماية المحتوى الرقمي</p>
+            </div>
+          ) : isDirectVideo ? (
+            resolvedDirectUrl ? (
               <video
                 ref={directVideoRef}
-                src={lesson.videoUrl}
+                src={resolvedDirectUrl}
                 autoPlay
                 playsInline
                 className="w-full h-full object-contain pointer-events-none select-none"
@@ -826,6 +873,7 @@ export const SecureVideoPlayer: React.FC<SecureVideoPlayerProps> = ({
                   if (vid.duration && !isNaN(vid.duration) && vid.duration > 0) {
                     setDuration(Math.round(vid.duration));
                   }
+                  attachDRMHardwareProtection(vid);
                 }}
                 onTimeUpdate={(e) => {
                   if (!isScrubbing) {
@@ -858,8 +906,10 @@ export const SecureVideoPlayer: React.FC<SecureVideoPlayerProps> = ({
         <div className="absolute top-0 left-0 right-0 h-16 bg-transparent z-10 pointer-events-auto" />
         <div className="absolute bottom-0 inset-x-0 h-14 bg-transparent z-10 pointer-events-auto" />
 
+
+
         {/* Clickable Center Overlay to Toggle Play/Pause */}
-        {!isTabInactive && (
+        {!(securityStatus.isRecordingDetected || securityStatus.isDevToolsOpen || securityStatus.isWindowBlurred || isTabInactive) && (
           <div
             onClick={togglePlay}
             className="absolute inset-0 z-20 cursor-pointer flex items-center justify-center group/centerplay"
@@ -872,20 +922,36 @@ export const SecureVideoPlayer: React.FC<SecureVideoPlayerProps> = ({
           </div>
         )}
 
-        {/* Inactive Tab Overlay */}
-        {isTabInactive && (
+        {/* Ultra-High Security Lock Screen Overlay (Anti-Screen Recording & DevTools & Loss of Focus) */}
+        {(securityStatus.isRecordingDetected || securityStatus.isDevToolsOpen || securityStatus.isWindowBlurred || isTabInactive) && (
           <div
             onClick={() => {
+              resetRecordingAlert();
               setIsTabInactive(false);
               togglePlay();
             }}
-            className="absolute inset-0 z-40 bg-slate-950/90 backdrop-blur-md flex flex-col items-center justify-center p-6 text-center text-white cursor-pointer animate-in fade-in transition-all"
+            className="absolute inset-0 z-50 bg-slate-950/95 backdrop-blur-2xl flex flex-col items-center justify-center p-6 text-center text-white cursor-pointer select-none animate-in fade-in transition-all"
           >
-            <div className="w-16 h-16 rounded-full bg-cyan-500/20 border border-cyan-500/40 flex items-center justify-center text-cyan-400 mb-3 animate-pulse shadow-2xl">
-              <Play className="w-8 h-8 fill-cyan-400 mr-1" />
+            <div className="w-20 h-20 rounded-3xl bg-rose-500/20 border border-rose-500/50 flex items-center justify-center text-rose-400 mb-4 animate-pulse shadow-2xl">
+              <ShieldAlert className="w-10 h-10" />
             </div>
-            <h3 className="text-base font-bold text-white mb-1">توقف البث مؤقتاً أثناء التبديل</h3>
-            <p className="text-xs text-slate-300 max-w-xs">انقر هنا لاستئناف المشاهدة والتحكم في المشغل</p>
+
+            <span className="px-3.5 py-1 rounded-full text-xs font-black bg-rose-500/30 text-rose-300 border border-rose-500/50 mb-3">
+              🚨 تم تفعيل حماية حظر تسجيل الشاشة (Anti-Capture Defense)
+            </span>
+
+            <h3 className="text-xl font-black text-white mb-2">
+              {securityStatus.reason || 'تم إيقاف تشغيل الفيديو تلقائياً لأغراض الأمان والخصوصية'}
+            </h3>
+
+            <p className="text-xs text-slate-300 max-w-md leading-relaxed mb-6">
+              يمنع النظام تماماً التقاط الشاشة، تسجيل المقاطع، أو مشاركة النافذة عبر البرامج (مثل Zoom, Google Meet, OBS) للحفاظ على أمان المحتوى التعليمي.
+            </p>
+
+            <div className="px-6 py-3 rounded-2xl bg-gradient-to-r from-cyan-600 to-teal-600 hover:from-cyan-500 hover:to-teal-500 text-white font-bold text-sm shadow-xl flex items-center gap-2 cursor-pointer transition-all">
+              <Play className="w-4 h-4 fill-white" />
+              <span>انقر هنا لإعادة استئناف تشغيل المحاضرة</span>
+            </div>
           </div>
         )}
 

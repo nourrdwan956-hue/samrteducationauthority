@@ -23,6 +23,7 @@ export const StudentPortal: React.FC = () => {
     exams, 
     examSubmissions,
     assignments,
+    assignmentSubmissions,
     courseAnnouncements,
     supportTickets, 
     setCurrentView, 
@@ -541,8 +542,8 @@ export const StudentPortal: React.FC = () => {
             <Users className="w-5 h-5 text-cyan-600 dark:text-cyan-400" />
             مدرسيّ المعتمدون في المنظومة
           </h3>
-          <span className="text-xs font-bold text-slate-500 dark:text-slate-400">
-            {myTeachers.length} معلمين مشترك معهم
+          <span className="text-xs font-bold text-emerald-600 dark:text-emerald-400 flex items-center gap-1">
+            <ShieldCheck className="w-4 h-4" /> معتمدون ومتاحون للتواصل
           </span>
         </div>
 
@@ -634,7 +635,7 @@ export const StudentPortal: React.FC = () => {
                        </span>
                        {course.participatingTeachers && course.participatingTeachers.length > 0 && (
                          <span className="px-2 py-0.5 bg-indigo-600/90 text-white text-[10px] font-bold rounded-lg backdrop-blur-md">
-                           👨‍🏫 {1 + course.participatingTeachers.length} معلمين
+                           👨‍🏫 كادر تعليمي معتمد
                          </span>
                        )}
                     </div>
@@ -891,8 +892,8 @@ export const StudentPortal: React.FC = () => {
            <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">جميع المواد والمحاضرات المصرح لك بمشاهدتها والتفاعل معها.</p>
          </div>
          <div className="flex items-center gap-3">
-           <span className="px-3 py-1 bg-cyan-50 dark:bg-cyan-950/40 text-cyan-700 dark:text-cyan-300 border border-cyan-200 dark:border-cyan-800 rounded-full text-xs font-black">
-             {enrolledCourses.length} كورس مشترك به
+           <span className="px-3 py-1 bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800 rounded-full text-xs font-black flex items-center gap-1">
+             <ShieldCheck className="w-3.5 h-3.5 text-emerald-600" /> مقرراتك المفعلة
            </span>
            <button 
              onClick={() => setCurrentView('platforms')}
@@ -932,7 +933,7 @@ export const StudentPortal: React.FC = () => {
                   </div>
                   {course.participatingTeachers && course.participatingTeachers.length > 0 && (
                     <div className="absolute bottom-3 right-3 px-2 py-0.5 bg-indigo-600/90 text-white text-[10px] font-bold rounded-lg backdrop-blur-md">
-                      👨‍🏫 {1 + course.participatingTeachers.length} معلمين معتمدين
+                      👨‍🏫 كادر تعليمي معتمد
                     </div>
                   )}
                 </div>
@@ -979,9 +980,9 @@ export const StudentPortal: React.FC = () => {
 
   // --- RENDER ASSIGNMENTS & CONCEPT SHEET TAB ---
   const renderAssignments = () => {
-    const relevantAssignments = assignments.filter((a) =>
-      enrolledCourses.some((c) => c.id === a.courseId) || assignments.length > 0
-    );
+    // Show published assignments created by teachers
+    const publishedAssignments = assignments.filter((a) => a.isPublished !== false && a.status !== 'draft');
+    const relevantAssignments = publishedAssignments;
 
     return (
       <div className="space-y-6 animate-fade-in text-right" dir="rtl">
@@ -992,7 +993,7 @@ export const StudentPortal: React.FC = () => {
               الواجبات والتكليفات التخصصية
             </h2>
             <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
-              واجبات مجهزة بورقة مفاهيم وقواعد استرشادية مرافقة لكل سؤال وتصحيح إلكتروني فوري.
+              واجبات مجهزة بورقة مفاهيم وقواعد استرشادية مرافقة وتصحيح إلكتروني ذكي فوري.
             </p>
           </div>
         </div>
@@ -1001,49 +1002,78 @@ export const StudentPortal: React.FC = () => {
           <div className="p-12 rounded-[32px] border border-slate-200 dark:border-slate-800 text-center bg-white dark:bg-slate-900 shadow-sm space-y-3">
             <FileText className="w-14 h-14 text-slate-300 dark:text-slate-700 mx-auto" />
             <h3 className="text-base font-bold text-slate-800 dark:text-slate-200">لا توجد واجبات معلنة حالياً</h3>
-            <p className="text-xs text-slate-500 dark:text-slate-400">سيقوم مدرسوك بنشر التكليفات مصحوبة بأوراق المفاهيم هنا.</p>
+            <p className="text-xs text-slate-500 dark:text-slate-400">سيقوم مدرسوك بنشر التكليفات مصحوبة بأوراق المفاهيم هنا فور تجهيزها.</p>
           </div>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
             {relevantAssignments.map((asg) => {
               const relCourse = courses.find((c) => c.id === asg.courseId);
-              const submission = asg.submissions?.find((s) => s.studentId === currentUser?.id);
+              const relModule = relCourse?.modules?.find((m) => m.id === asg.moduleId);
+              
+              // Check submission from global assignmentSubmissions or embedded
+              const studentSubmission = (assignmentSubmissions || []).find(
+                (s) => s.assignmentId === asg.id && (s.studentId === currentUser?.id || s.studentName === currentUser?.name)
+              ) || asg.submissions?.find((s) => s.studentId === currentUser?.id);
+
+              const isPassed = studentSubmission ? (studentSubmission.percentage >= (asg.passingPercentage || 50)) : false;
 
               return (
                 <div
                   key={asg.id}
-                  className="p-5 rounded-3xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-sm flex flex-col justify-between space-y-4 hover:border-teal-500 transition-all"
+                  className="p-5 rounded-3xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-sm flex flex-col justify-between space-y-4 hover:border-teal-500 transition-all group"
                 >
-                  <div className="space-y-2.5">
-                    <div className="flex items-center justify-between">
+                  <div className="space-y-3">
+                    <div className="flex items-center justify-between gap-2 flex-wrap">
                       <span className="px-2.5 py-1 rounded-xl bg-teal-500/10 text-teal-600 dark:text-teal-400 text-xs font-bold">
-                        {asg.subject}
+                        {relCourse ? relCourse.title : (asg.subject || 'كورس عام')}
                       </span>
                       {asg.allowConceptSheet && (
                         <span className="px-2 py-0.5 rounded-lg bg-amber-500/15 text-amber-700 dark:text-amber-400 text-[10px] font-black border border-amber-500/20">
-                          مرفق ورقة مفاهيم 📑
+                          ورقة مفاهيم 📑
                         </span>
                       )}
                     </div>
 
-                    <h3 className="text-base font-black text-slate-900 dark:text-white">
+                    {relModule && (
+                      <p className="text-[11px] text-slate-500 font-semibold flex items-center gap-1">
+                        <span>الوحدة:</span>
+                        <span className="text-slate-700 dark:text-slate-300">{relModule.title}</span>
+                      </p>
+                    )}
+
+                    <h3 className="text-base font-black text-slate-900 dark:text-white leading-snug group-hover:text-teal-600 dark:group-hover:text-teal-400 transition-colors">
                       {asg.title}
                     </h3>
                     <p className="text-xs text-slate-500 dark:text-slate-400 line-clamp-2">
                       {asg.description || 'واجب دوري للتطبيق على القواعد والمفاهيم الأساسية'}
                     </p>
 
-                    <div className="pt-2 flex items-center justify-between text-xs text-slate-600 dark:text-slate-400 font-mono">
-                      <span>الأسئلة: {asg.questions?.length || 0}</span>
-                      <span>الدرجة: {asg.totalPoints}</span>
-                      <span>المدة: {asg.durationMinutes} دقيقة</span>
+                    <div className="pt-2 grid grid-cols-3 gap-1 bg-slate-50 dark:bg-slate-800/50 p-2.5 rounded-2xl text-[11px] text-slate-600 dark:text-slate-400 font-mono text-center">
+                      <div>
+                        <div className="text-[9px] text-slate-400 font-sans">الأسئلة</div>
+                        <div className="font-bold">{asg.questions?.length || 0}</div>
+                      </div>
+                      <div>
+                        <div className="text-[9px] text-slate-400 font-sans">الدرجة</div>
+                        <div className="font-bold">{asg.totalPoints || 0}</div>
+                      </div>
+                      <div>
+                        <div className="text-[9px] text-slate-400 font-sans">المدة</div>
+                        <div className="font-bold">{asg.durationMinutes || 30} د</div>
+                      </div>
                     </div>
 
-                    {submission && (
-                      <div className="p-3 rounded-2xl bg-slate-50 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 text-xs flex items-center justify-between">
-                        <span className="text-slate-500">تم التسليم:</span>
-                        <span className="font-mono font-bold text-teal-600 dark:text-teal-400">
-                          {submission.score} / {asg.totalPoints} ({submission.percentage}%)
+                    {studentSubmission && (
+                      <div className={`p-3 rounded-2xl border text-xs flex items-center justify-between ${
+                        isPassed 
+                          ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-700 dark:text-emerald-300'
+                          : 'bg-amber-500/10 border-amber-500/30 text-amber-700 dark:text-amber-300'
+                      }`}>
+                        <div className="flex items-center gap-1.5 font-bold">
+                          <span>{isPassed ? 'تم الاجتياز بنجاح ✅' : 'يحتاج مراجعة وإعادة ⚠️'}</span>
+                        </div>
+                        <span className="font-mono font-black text-sm">
+                          {studentSubmission.score} / {asg.totalPoints} ({studentSubmission.percentage}%)
                         </span>
                       </div>
                     )}
@@ -1055,7 +1085,7 @@ export const StudentPortal: React.FC = () => {
                       onClick={() => setActiveSolvingAssignmentId(asg.id)}
                       className="w-full py-2.5 rounded-2xl bg-gradient-to-r from-teal-600 to-emerald-600 hover:from-teal-500 hover:to-emerald-500 text-white font-bold text-xs transition-all shadow-md shadow-teal-900/20 cursor-pointer flex items-center justify-center gap-2"
                     >
-                      <span>{submission ? 'إعادة حل الواجب 🔄' : 'بدء حل الواجب الآن 🚀'}</span>
+                      <span>{studentSubmission ? 'إعادة حل التكليف 🔄' : 'بدء حل التكليف الآن 🚀'}</span>
                     </button>
                   </div>
                 </div>

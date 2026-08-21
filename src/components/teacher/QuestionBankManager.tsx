@@ -902,36 +902,66 @@ export const QuestionBankManager: React.FC<QuestionBankManagerProps> = ({ course
 
               {/* Options for MCQ */}
               {formType === 'mcq' && (
-                <div className="space-y-2">
-                  <label className="block text-xs font-bold text-slate-700 dark:text-slate-300">
-                    الخيارات الأربعة (حدد الإجابة الصحيحة):
-                  </label>
-                  {formOptions.map((opt, optIdx) => (
-                    <div key={optIdx} className="flex items-center gap-2">
-                      <input
-                        type="radio"
-                        name="correctOption"
-                        checked={formCorrectOptionIndex === optIdx}
-                        onChange={() => setFormCorrectOptionIndex(optIdx)}
-                        className="w-4 h-4 text-cyan-600 focus:ring-cyan-500 cursor-pointer"
-                      />
-                      <span className="text-xs font-bold text-slate-500 w-4">
-                        {String.fromCharCode(65 + optIdx)}
-                      </span>
-                      <input
-                        type="text"
-                        value={opt}
-                        onChange={(e) => {
-                          const newOpts = [...formOptions];
-                          newOpts[optIdx] = e.target.value;
-                          setFormOptions(newOpts);
-                        }}
-                        placeholder={`الخيار ${String.fromCharCode(65 + optIdx)}`}
-                        className="flex-1 px-3 py-2 text-xs rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white focus:outline-none focus:border-cyan-500"
-                        required
-                      />
-                    </div>
-                  ))}
+                <div className="space-y-2.5">
+                  <div className="flex items-center justify-between">
+                    <label className="block text-xs font-bold text-slate-700 dark:text-slate-300">
+                      الخيارات (حدد الإجابة الصحيحة بالضغط على الدائرة):
+                    </label>
+                    <button
+                      type="button"
+                      onClick={() => setFormOptions([...formOptions, ''])}
+                      className="text-xs text-cyan-600 dark:text-cyan-400 font-bold hover:underline flex items-center gap-1 cursor-pointer"
+                    >
+                      <Plus className="w-3.5 h-3.5" />
+                      <span>+ إضافة خيار</span>
+                    </button>
+                  </div>
+                  <div className="space-y-2">
+                    {formOptions.map((opt, optIdx) => (
+                      <div key={optIdx} className="flex items-center gap-2">
+                        <input
+                          type="radio"
+                          name="correctOption"
+                          checked={formCorrectOptionIndex === optIdx}
+                          onChange={() => setFormCorrectOptionIndex(optIdx)}
+                          className="w-4 h-4 text-cyan-600 focus:ring-cyan-500 cursor-pointer"
+                        />
+                        <span className="text-xs font-bold text-slate-500 w-4">
+                          {String.fromCharCode(65 + optIdx)}
+                        </span>
+                        <input
+                          type="text"
+                          value={opt}
+                          onChange={(e) => {
+                            const newOpts = [...formOptions];
+                            newOpts[optIdx] = e.target.value;
+                            setFormOptions(newOpts);
+                          }}
+                          placeholder={`الخيار ${String.fromCharCode(65 + optIdx)}`}
+                          className="flex-1 px-3 py-2 text-xs rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white focus:outline-none focus:border-cyan-500"
+                          required
+                        />
+                        {formOptions.length > 2 && (
+                          <button
+                            type="button"
+                            onClick={() => {
+                              const newOpts = formOptions.filter((_, i) => i !== optIdx);
+                              setFormOptions(newOpts);
+                              if (formCorrectOptionIndex >= newOpts.length) {
+                                setFormCorrectOptionIndex(Math.max(0, newOpts.length - 1));
+                              } else if (formCorrectOptionIndex === optIdx) {
+                                setFormCorrectOptionIndex(0);
+                              }
+                            }}
+                            className="p-1.5 text-slate-400 hover:text-rose-500 hover:bg-rose-500/10 rounded-lg transition-colors"
+                            title="حذف الخيار"
+                          >
+                            <Trash2 className="w-3.5 h-3.5" />
+                          </button>
+                        )}
+                      </div>
+                    ))}
+                  </div>
                 </div>
               )}
 

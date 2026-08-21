@@ -38,10 +38,14 @@ export const CourseSubscribeModal: React.FC<CourseSubscribeModalProps> = ({
     enrollInCourse, 
     submitDepositRequest,
     setIsAuthModalOpen,
+    setCurrentCourse,
+    setCurrentView,
     addToast 
   } = useApp();
 
   const [activeMethod, setActiveMethod] = useState<'code' | 'transfer' | 'wallet'>('code');
+  const [isSubscribedSuccess, setIsSubscribedSuccess] = useState(false);
+  const [successMessage, setSuccessMessage] = useState('');
   
   // Code Redemption State
   const [accessCode, setAccessCode] = useState('');
@@ -88,8 +92,9 @@ export const CourseSubscribeModal: React.FC<CourseSubscribeModalProps> = ({
       const res = redeemCourseAccessCode(clean, course.id);
       if (res.success) {
         setAccessCode('');
+        setSuccessMessage('تم التحقق من الكود وتفعيل اشتراكك في الكورس بنجاح!');
+        setIsSubscribedSuccess(true);
         if (onSuccess) onSuccess();
-        onClose();
       } else {
         setCodeError(res.message);
       }
@@ -108,9 +113,16 @@ export const CourseSubscribeModal: React.FC<CourseSubscribeModalProps> = ({
 
     const res = enrollInCourse(course.id);
     if (res.success) {
+      setSuccessMessage('تم خصم الرسوم من محفظتك وتفعيل اشتراكك فوراً!');
+      setIsSubscribedSuccess(true);
       if (onSuccess) onSuccess();
-      onClose();
     }
+  };
+
+  const handleGoToSubscribedCourse = () => {
+    setCurrentCourse(course);
+    setCurrentView('course_detail');
+    onClose();
   };
 
   const handleDirectTransferSubmit = (e: React.FormEvent) => {
@@ -162,8 +174,56 @@ export const CourseSubscribeModal: React.FC<CourseSubscribeModalProps> = ({
     <div className="fixed inset-0 z-[150] flex items-center justify-center p-4 bg-slate-950/60 dark:bg-slate-950/80 backdrop-blur-md animate-fade-in text-right" dir="rtl">
       <div className="w-full max-w-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-slate-900 dark:text-white rounded-[32px] overflow-hidden shadow-2xl relative flex flex-col max-h-[92vh]">
         
-        {/* Header Ribbon */}
-        <div className="relative p-6 sm:p-8 bg-gradient-to-r from-slate-100 via-indigo-50 to-cyan-50 dark:from-slate-950 dark:via-slate-900 dark:to-indigo-950 border-b border-slate-200 dark:border-slate-800 text-slate-900 dark:text-white shrink-0">
+        {/* Celebration State on Success */}
+        {isSubscribedSuccess ? (
+          <div className="p-8 sm:p-12 flex flex-col items-center justify-center text-center space-y-6 animate-scaleUp">
+            <div className="w-24 h-24 rounded-3xl bg-emerald-500/20 text-emerald-500 border-2 border-emerald-500/40 flex items-center justify-center shadow-2xl animate-bounce">
+              <CheckCircle2 className="w-14 h-14" />
+            </div>
+
+            <div className="space-y-2">
+              <span className="px-3.5 py-1 rounded-full text-xs font-black bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 border border-emerald-500/20">
+                🎉 تم تفعيل الاشتراك بنجاح!
+              </span>
+              <h2 className="text-2xl sm:text-3xl font-black text-slate-900 dark:text-white">
+                أهلاً بك في مقرر "{course.title}"
+              </h2>
+              <p className="text-sm text-slate-600 dark:text-slate-300 max-w-md mx-auto leading-relaxed">
+                {successMessage || 'تم فتح كافة المحاضرات، الامتحانات، الواجبات، والمذكرات الخاصة بهذا المقرر الآن.'}
+              </p>
+            </div>
+
+            <div className="w-full max-w-md p-4 rounded-2xl bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 flex items-center justify-between text-xs font-bold text-slate-700 dark:text-slate-300">
+              <div className="flex items-center gap-2">
+                <BookOpen className="w-4 h-4 text-cyan-500" />
+                <span>حالة القيد بالمقرر:</span>
+              </div>
+              <span className="text-emerald-600 dark:text-emerald-400 font-black">مفعل ومتاح بالكامل ✅</span>
+            </div>
+
+            <div className="flex flex-col sm:flex-row items-center gap-3 w-full max-w-md pt-2">
+              <button
+                type="button"
+                onClick={handleGoToSubscribedCourse}
+                className="w-full py-4 rounded-2xl bg-gradient-to-r from-emerald-500 via-teal-500 to-cyan-500 hover:from-emerald-400 hover:to-cyan-400 text-slate-950 font-black text-sm shadow-xl shadow-emerald-500/20 transition-all cursor-pointer flex items-center justify-center gap-2"
+              >
+                <span>انتقل لمحتوى الدورة التي اشتركت بها الآن 🚀</span>
+                <ArrowRight className="w-4 h-4 rotate-180" />
+              </button>
+
+              <button
+                type="button"
+                onClick={onClose}
+                className="w-full sm:w-auto px-6 py-4 rounded-2xl bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 font-bold text-sm transition-colors cursor-pointer text-center"
+              >
+                إغلاق
+              </button>
+            </div>
+          </div>
+        ) : (
+          <>
+            {/* Header Ribbon */}
+            <div className="relative p-6 sm:p-8 bg-gradient-to-r from-slate-100 via-indigo-50 to-cyan-50 dark:from-slate-950 dark:via-slate-900 dark:to-indigo-950 border-b border-slate-200 dark:border-slate-800 text-slate-900 dark:text-white shrink-0">
           <button
             onClick={onClose}
             className="absolute top-5 left-5 p-2 rounded-xl bg-slate-200/60 hover:bg-slate-200 dark:bg-white/5 dark:hover:bg-white/10 text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white transition-colors cursor-pointer"
@@ -501,6 +561,8 @@ export const CourseSubscribeModal: React.FC<CourseSubscribeModalProps> = ({
           )}
 
         </div>
+        </>
+        )}
 
       </div>
     </div>

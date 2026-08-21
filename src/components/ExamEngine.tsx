@@ -4,6 +4,10 @@ import { useApp } from '../context/AppContext';
 import { Exam, ExamSubmission, Question } from '../types';
 import { isEnglishText, getOptionPrefix } from '../utils/langUtils';
 import {
+  initScreenRecordingProtection,
+  subscribeToScreenProtection,
+} from '../lib/screenProtection';
+import {
   Timer,
   CheckCircle,
   XCircle,
@@ -108,6 +112,15 @@ export const ExamEngine: React.FC<ExamEngineProps> = ({ exam: propExam, onExit }
   const [showSubmitConfirmModal, setShowSubmitConfirmModal] = useState(false);
   const [filterMode, setFilterMode] = useState<'all' | 'unanswered' | 'flagged'>('all');
 
+  // Interactive Concept & Formula Sheet States
+  const [isConceptSheetOpen, setIsConceptSheetOpen] = useState(false);
+  const [conceptSheetSearch, setConceptSheetSearch] = useState('');
+  const [activeConceptTab, setActiveConceptTab] = useState<'all' | 'laws' | 'rules' | 'notes' | 'tips'>('all');
+
+  // Ambient Focus Sound Generator (Web Audio API)
+  const [isAmbientFocusActive, setIsAmbientFocusActive] = useState(false);
+  const audioCtxRef = useRef<any>(null);
+
   // Strict Anti-Cheat & Security States
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [violationsCount, setViolationsCount] = useState(0);
@@ -117,6 +130,374 @@ export const ExamEngine: React.FC<ExamEngineProps> = ({ exam: propExam, onExit }
   const [cancellationReason, setCancellationReason] = useState('');
 
   const containerRef = useRef<HTMLDivElement>(null);
+  const timerStorageKey = `sea_exam_deadline_${exam?.id}_${currentUser?.id || 'guest'}`;
+
+  // Automated Scoring Engine
+  const evaluateQuestion = (q: Question, ans: any): { isCorrect: boolean; pointsEarned: number } => {
+    if (ans === undefined || ans === null || ans === '') {
+      return { isCorrect: false, pointsEarned: 0 };
+    }
+
+    switch (q.type) {
+      case 'mcq':
+      case 'listening': {
+        const correct = Number(ans) === q.correctOptionIndex;
+        return { isCorrect: correct, pointsEarned: correct ? q.points : 0 };
+      }
+
+      case 'true_false': {
+        const expected = q.correctBool !== undefined ? q.correctBool : q.correctOptionIndex === 0;
+        const correct = ans === expected;
+        return { isCorrect: correct, pointsEarned: correct ? q.points : 0 };
+      }
+
+      case 'fill_blank': {
+        const studentStr = String(ans).trim().toLowerCase();
+        const validList = (q.fillBlankAnswers || []).map((s) => s.trim().toLowerCase());
+        const correct = validList.includes(studentStr);
+        return { isCorrect: correct, pointsEarned: correct ? q.points : 0 };
+      }
+
+      case 'matching': {
+        const matchingPairs = q.matchingPairs || [];
+        if (matchingPairs.length === 0) return { isCorrect: true, pointsEarned: q.points };
+
+        let correctCount = 0;
+        matchingPairs.forEach((pair) => {
+          if (ans && ans[pair.left] === pair.right) {
+            correctCount++;
+          }
+        });
+        const correct = correctCount === matchingPairs.length;
+        const points = Math.round((correctCount / matchingPairs.length) * q.points);
+        return { isCorrect: correct, pointsEarned: points };
+      }
+
+      case 'ordering': {
+        const expected = q.orderingItems || [];
+        if (!Array.isArray(ans) || ans.length !== expected.length) {
+          return { isCorrect: false, pointsEarned: 0 };
+        }
+        const correct = ans.every((item, i) => item === expected[i]);
+        return { isCorrect: correct, pointsEarned: correct ? q.points : 0 };
+      }
+
+      case 'error_correction': {
+        const studentStr = String(ans).trim().toLowerCase();
+        const expected = (q.correction || '').trim().toLowerCase();
+        const correct = studentStr === expected;
+        return { isCorrect: correct, pointsEarned: correct ? q.points : 0 };
+      }
+
+      case 'passage': {
+        const subQuestions = q.passageQuestions || [];
+        if (subQuestions.length === 0) return { isCorrect: true, pointsEarned: q.points };
+
+        let totalSubScore = 0;
+        let allCorrect = true;
+        subQuestions.forEach((subQ) => {
+          if (ans && ans[subQ.id] === subQ.correctOptionIndex) {
+            totalSubScore += subQ.points;
+          } else {
+            allCorrect = false;
+          }
+        });
+        return { isCorrect: allCorrect, pointsEarned: totalSubScore };
+      }
+
+      case 'short_answer': {
+        const studentStr = String(ans).trim().toLowerCase();
+        if (!studentStr) return { isCorrect: false, pointsEarned: 0 };
+        const keywords = (q.keywords || []).map((k) => k.trim().toLowerCase());
+        const matchCount = keywords.filter((kw) => studentStr.includes(kw)).length;
+        const passRatio = keywords.length > 0 ? matchCount / keywords.length : studentStr.length > 5 ? 1 : 0.5;
+        const pts = Math.round(passRatio * q.points);
+        return { isCorrect: passRatio >= 0.5, pointsEarned: pts };
+      }
+
+      case 'essay': {
+        const studentStr = String(ans).trim();
+        const pts = studentStr.length > 30 ? q.points : Math.round(q.points * 0.5);
+        return { isCorrect: true, pointsEarned: pts };
+      }
+
+      default:
+        return { isCorrect: false, pointsEarned: 0 };
+    }
+  };
+
+  // Immediate Exam Cancellation Handler on Policy Violation
+  const handleCancelExamDueToViolation = (reason: string) => {
+    if (!exam || isSubmitted || isCancelledDueToViolation) return;
+
+    let maxScore = 0;
+    exam.questions.forEach((q) => {
+      const qMax =
+        q.type === 'passage' && q.passageQuestions
+          ? q.passageQuestions.reduce((acc, pq) => acc + pq.points, 0)
+          : q.points;
+      maxScore += qMax;
+    });
+
+    const result = submitExamAttempt({
+      examId: exam.id,
+      examTitle: exam.title,
+      studentId: currentUser?.id || 'anon_student',
+      studentName: currentUser?.name || 'طالب',
+      studentPhone: currentUser?.phone,
+      score: 0,
+      totalPoints: maxScore,
+      percentage: 0,
+      passed: false,
+      timeSpentSeconds: Math.max(1, exam.durationMinutes * 60 - timeLeftSeconds),
+      answers: selectedAnswers,
+      isCancelledDueToViolation: true,
+      violationReason: reason,
+      violationsCount: violationsCount + 1,
+    });
+
+    setIsCancelledDueToViolation(true);
+    setCancellationReason(reason);
+    setSubmissionResult(result);
+    setIsSubmitted(true);
+    setShowViolationModal(false);
+
+    if (document.fullscreenElement && document.exitFullscreen) {
+      try {
+        document.exitFullscreen();
+      } catch {}
+    }
+
+    addToast(
+      'error',
+      'تم إلغاء الامتحان واحتساب درجة 0 ⛔',
+      `تم رصد مغادرة بيئة الامتحان الصارمة مخالفةً لقواعد النزاهة الأكاديمية.`
+    );
+  };
+
+  // Trigger Violation Event
+  const registerViolation = (reason: string) => {
+    if (!exam || !hasStartedExam || isSubmitted || isCancelledDueToViolation) return;
+    if (exam.enableAntiCheat === false) return;
+
+    const maxAllowed = exam.maxViolationsAllowed !== undefined ? exam.maxViolationsAllowed : 1;
+    const newViolations = violationsCount + 1;
+    setViolationsCount(newViolations);
+    setLastViolationReason(reason);
+
+    // If cancel on leave is enabled AND threshold reached -> Cancel instantly
+    if (exam.cancelOnLeave !== false && newViolations >= maxAllowed) {
+      handleCancelExamDueToViolation(reason);
+    } else {
+      setShowViolationModal(true);
+    }
+  };
+
+  const handleSubmitExam = () => {
+    if (!exam || isSubmitted || isCancelledDueToViolation) return;
+
+    // Clean up timer and audio
+    localStorage.removeItem(timerStorageKey);
+    if (audioCtxRef.current) {
+      try { audioCtxRef.current.close(); } catch {}
+      audioCtxRef.current = null;
+      setIsAmbientFocusActive(false);
+    }
+
+    setShowSubmitConfirmModal(false);
+
+    let totalScore = 0;
+    let maxScore = 0;
+
+    exam.questions.forEach((q) => {
+      const qMax =
+        q.type === 'passage' && q.passageQuestions
+          ? q.passageQuestions.reduce((acc, pq) => acc + pq.points, 0)
+          : q.points;
+      maxScore += qMax;
+
+      const evalResult = evaluateQuestion(q, selectedAnswers[q.id]);
+      totalScore += evalResult.pointsEarned;
+    });
+
+    const percentage = maxScore > 0 ? Math.round((totalScore / maxScore) * 100) : 0;
+    const passed = percentage >= exam.passingScorePercent;
+
+    const result = submitExamAttempt({
+      examId: exam.id,
+      examTitle: exam.title,
+      studentId: currentUser?.id || 'anon_student',
+      studentName: currentUser?.name || 'طالب متميز',
+      studentPhone: currentUser?.phone,
+      score: totalScore,
+      totalPoints: maxScore,
+      percentage,
+      passed,
+      timeSpentSeconds: Math.max(1, exam.durationMinutes * 60 - timeLeftSeconds),
+      answers: selectedAnswers,
+      violationsCount,
+      isCancelledDueToViolation: false,
+    });
+
+    setSubmissionResult(result);
+    setIsSubmitted(true);
+
+    if (document.fullscreenElement && document.exitFullscreen) {
+      try {
+        document.exitFullscreen();
+      } catch {}
+    }
+
+    if (passed) {
+      confetti({
+        particleCount: 120,
+        spread: 80,
+        origin: { y: 0.6 },
+      });
+      addToast('success', 'تهانينا! لقد اجتزت الامتحان بنجاح 🎓', `حصلت على ${percentage}%`);
+    } else {
+      addToast(
+        'warning',
+        'لم تحقق درجة النجاح المطلوبة',
+        `حصلت على ${percentage}%. يمكنك مراجعة الإجابات النموذجية وإعادة المحاولة.`
+      );
+    }
+  };
+
+  // Anti-Cheat: Event Listeners for Strict Environment - MUST be declared before any early returns
+  useEffect(() => {
+    if (!exam || !hasStartedExam || isSubmitted || isCancelledDueToViolation) return;
+
+    const cleanupProtection = initScreenRecordingProtection();
+    const unsubscribeProtection = subscribeToScreenProtection((status) => {
+      if (status.isRecordingDetected) {
+        registerViolation(status.reason || 'محاولة تشغيل مسجل شاشة أو برامج بث خارجية أثناء الامتحان');
+      } else if (status.isDevToolsOpen) {
+        registerViolation('فتح أدوات تطوير المتصفح (DevTools) أثناء الامتحان');
+      }
+    });
+
+    const handleVisibilityChange = () => {
+      if (document.hidden) {
+        registerViolation('تبديل التبويب أو تصغير نافذة الامتحان أثناء الجلسة');
+      }
+    };
+
+    const handleWindowBlur = () => {
+      registerViolation('الخروج من نافذة الامتحان أو النقر على تطبيق خارجي');
+    };
+
+    const handleFullscreenChange = () => {
+      const isStillFullscreen = !!document.fullscreenElement;
+      setIsFullscreen(isStillFullscreen);
+      if (!isStillFullscreen && exam.strictFullscreenEnforced !== false) {
+        registerViolation('مغادرة وضع ملء الشاشة الصارم (Fullscreen)');
+      }
+    };
+
+    const handleContextMenu = (e: MouseEvent) => {
+      if (exam.preventCopyPaste !== false) {
+        e.preventDefault();
+        addToast('warning', 'ميزة محظورة', 'النقر بالزر الأيمن معطل لحماية بيئة الامتحان.');
+      }
+    };
+
+    const handleCopyPaste = (e: ClipboardEvent) => {
+      if (exam.preventCopyPaste !== false) {
+        e.preventDefault();
+        addToast('warning', 'ميزة محظورة', 'النسخ واللصق معطل تماماً أثناء الامتحان.');
+      }
+    };
+
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (exam.preventCopyPaste !== false) {
+        if (
+          e.key === 'F12' ||
+          e.key === 'F5' ||
+          e.key === 'F11' ||
+          e.key === 'PrintScreen' ||
+          (e.ctrlKey && ['c', 'v', 'u', 's', 'a', 'p', 'r', 'w'].includes(e.key.toLowerCase())) ||
+          (e.ctrlKey && e.shiftKey && ['i', 'j', 'c'].includes(e.key.toLowerCase())) ||
+          (e.altKey && (e.key === 'ArrowLeft' || e.key === 'ArrowRight' || e.key === 'Tab'))
+        ) {
+          e.preventDefault();
+          e.stopPropagation();
+          addToast('warning', 'اختصار محظور', 'هذا الاختصار معطل داخل بيئة الامتحان الصارمة لحماية النزاهة.');
+        }
+      }
+    };
+
+    const handlePopState = (e: PopStateEvent) => {
+      e.preventDefault();
+      window.history.pushState(null, '', window.location.href);
+      addToast('warning', 'ممنوع الرجوع للخلف', 'لا يمكنك الخروج من صفحة الامتحان إلا بعد تسليمه رسمياً.');
+    };
+    window.history.pushState(null, '', window.location.href);
+    window.addEventListener('popstate', handlePopState);
+
+    const handleBeforeUnload = (e: BeforeUnloadEvent) => {
+      e.preventDefault();
+      e.returnValue = 'الامتحان جاري حالياً. مغادرتك ستؤدي إلى إلغاء الامتحان أو رسوبك!';
+      return e.returnValue;
+    };
+    window.addEventListener('beforeunload', handleBeforeUnload);
+
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    window.addEventListener('blur', handleWindowBlur);
+    document.addEventListener('fullscreenchange', handleFullscreenChange);
+    document.addEventListener('contextmenu', handleContextMenu);
+    document.addEventListener('copy', handleCopyPaste);
+    document.addEventListener('paste', handleCopyPaste);
+    document.addEventListener('cut', handleCopyPaste);
+    window.addEventListener('keydown', handleKeyDown, true);
+
+    return () => {
+      unsubscribeProtection();
+      cleanupProtection();
+      window.removeEventListener('popstate', handlePopState);
+      window.removeEventListener('beforeunload', handleBeforeUnload);
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+      window.removeEventListener('blur', handleWindowBlur);
+      document.removeEventListener('fullscreenchange', handleFullscreenChange);
+      document.removeEventListener('contextmenu', handleContextMenu);
+      document.removeEventListener('copy', handleCopyPaste);
+      document.removeEventListener('paste', handleCopyPaste);
+      document.removeEventListener('cut', handleCopyPaste);
+      window.removeEventListener('keydown', handleKeyDown, true);
+    };
+  }, [hasStartedExam, isSubmitted, isCancelledDueToViolation, violationsCount, exam]);
+
+  // Persistent Countdown timer synced with real-world deadline in localStorage
+  useEffect(() => {
+    if (!exam || !hasStartedExam || isSubmitted || isCancelledDueToViolation) return;
+
+    let deadline = Number(localStorage.getItem(timerStorageKey));
+    const now = Date.now();
+    const expectedDurationMs = (exam?.durationMinutes || 20) * 60 * 1000;
+    
+    if (!deadline || isNaN(deadline) || deadline <= now || deadline > now + expectedDurationMs + 10000) {
+      deadline = now + expectedDurationMs;
+      localStorage.setItem(timerStorageKey, String(deadline));
+    }
+
+    const updateTimer = () => {
+      const currentNow = Date.now();
+      const storedDeadline = Number(localStorage.getItem(timerStorageKey)) || deadline;
+      const diffSeconds = Math.max(0, Math.floor((storedDeadline - currentNow) / 1000));
+      
+      setTimeLeftSeconds(diffSeconds);
+
+      if (diffSeconds <= 0) {
+        localStorage.removeItem(timerStorageKey);
+        handleSubmitExam();
+      }
+    };
+
+    updateTimer();
+    const timer = setInterval(updateTimer, 1000);
+
+    return () => clearInterval(timer);
+  }, [hasStartedExam, isSubmitted, isCancelledDueToViolation, exam]);
 
   if (!exam) {
     return (
@@ -232,279 +613,59 @@ export const ExamEngine: React.FC<ExamEngineProps> = ({ exam: propExam, onExit }
     }
   };
 
-  // Automated Scoring Engine
-  const evaluateQuestion = (q: Question, ans: any): { isCorrect: boolean; pointsEarned: number } => {
-    if (ans === undefined || ans === null || ans === '') {
-      return { isCorrect: false, pointsEarned: 0 };
-    }
-
-    switch (q.type) {
-      case 'mcq':
-      case 'listening': {
-        const correct = Number(ans) === q.correctOptionIndex;
-        return { isCorrect: correct, pointsEarned: correct ? q.points : 0 };
+  // Toggle ambient sound generator
+  const toggleAmbientFocus = () => {
+    if (isAmbientFocusActive) {
+      if (audioCtxRef.current) {
+        try {
+          audioCtxRef.current.close();
+        } catch {}
+        audioCtxRef.current = null;
       }
-
-      case 'true_false': {
-        const expected = q.correctBool !== undefined ? q.correctBool : q.correctOptionIndex === 0;
-        const correct = ans === expected;
-        return { isCorrect: correct, pointsEarned: correct ? q.points : 0 };
-      }
-
-      case 'fill_blank': {
-        const studentStr = String(ans).trim().toLowerCase();
-        const validList = (q.fillBlankAnswers || []).map((s) => s.trim().toLowerCase());
-        const correct = validList.includes(studentStr);
-        return { isCorrect: correct, pointsEarned: correct ? q.points : 0 };
-      }
-
-      case 'matching': {
-        const matchingPairs = q.matchingPairs || [];
-        if (matchingPairs.length === 0) return { isCorrect: true, pointsEarned: q.points };
-
-        let correctCount = 0;
-        matchingPairs.forEach((pair) => {
-          if (ans && ans[pair.left] === pair.right) {
-            correctCount++;
-          }
-        });
-        const correct = correctCount === matchingPairs.length;
-        const points = Math.round((correctCount / matchingPairs.length) * q.points);
-        return { isCorrect: correct, pointsEarned: points };
-      }
-
-      case 'ordering': {
-        const expected = q.orderingItems || [];
-        if (!Array.isArray(ans) || ans.length !== expected.length) {
-          return { isCorrect: false, pointsEarned: 0 };
-        }
-        const correct = ans.every((item, i) => item === expected[i]);
-        return { isCorrect: correct, pointsEarned: correct ? q.points : 0 };
-      }
-
-      case 'error_correction': {
-        const studentStr = String(ans).trim().toLowerCase();
-        const expected = (q.correction || '').trim().toLowerCase();
-        const correct = studentStr === expected;
-        return { isCorrect: correct, pointsEarned: correct ? q.points : 0 };
-      }
-
-      case 'passage': {
-        const subQuestions = q.passageQuestions || [];
-        if (subQuestions.length === 0) return { isCorrect: true, pointsEarned: q.points };
-
-        let totalSubScore = 0;
-        let allCorrect = true;
-        subQuestions.forEach((subQ) => {
-          if (ans && ans[subQ.id] === subQ.correctOptionIndex) {
-            totalSubScore += subQ.points;
-          } else {
-            allCorrect = false;
-          }
-        });
-        return { isCorrect: allCorrect, pointsEarned: totalSubScore };
-      }
-
-      case 'short_answer': {
-        const studentStr = String(ans).trim().toLowerCase();
-        if (!studentStr) return { isCorrect: false, pointsEarned: 0 };
-        const keywords = (q.keywords || []).map((k) => k.trim().toLowerCase());
-        const matchCount = keywords.filter((kw) => studentStr.includes(kw)).length;
-        const passRatio = keywords.length > 0 ? matchCount / keywords.length : studentStr.length > 5 ? 1 : 0.5;
-        const pts = Math.round(passRatio * q.points);
-        return { isCorrect: passRatio >= 0.5, pointsEarned: pts };
-      }
-
-      case 'essay': {
-        const studentStr = String(ans).trim();
-        const pts = studentStr.length > 30 ? q.points : Math.round(q.points * 0.5);
-        return { isCorrect: true, pointsEarned: pts };
-      }
-
-      default:
-        return { isCorrect: false, pointsEarned: 0 };
-    }
-  };
-
-  // Immediate Exam Cancellation Handler on Policy Violation
-  const handleCancelExamDueToViolation = (reason: string) => {
-    if (isSubmitted || isCancelledDueToViolation) return;
-
-    let maxScore = 0;
-    exam.questions.forEach((q) => {
-      const qMax =
-        q.type === 'passage' && q.passageQuestions
-          ? q.passageQuestions.reduce((acc, pq) => acc + pq.points, 0)
-          : q.points;
-      maxScore += qMax;
-    });
-
-    const result = submitExamAttempt({
-      examId: exam.id,
-      examTitle: exam.title,
-      studentId: currentUser?.id || 'anon_student',
-      studentName: currentUser?.name || 'طالب',
-      studentPhone: currentUser?.phone,
-      score: 0,
-      totalPoints: maxScore,
-      percentage: 0,
-      passed: false,
-      timeSpentSeconds: Math.max(1, exam.durationMinutes * 60 - timeLeftSeconds),
-      answers: selectedAnswers,
-      isCancelledDueToViolation: true,
-      violationReason: reason,
-      violationsCount: violationsCount + 1,
-    });
-
-    setIsCancelledDueToViolation(true);
-    setCancellationReason(reason);
-    setSubmissionResult(result);
-    setIsSubmitted(true);
-    setShowViolationModal(false);
-
-    if (document.fullscreenElement && document.exitFullscreen) {
-      try {
-        document.exitFullscreen();
-      } catch {}
-    }
-
-    addToast(
-      'error',
-      'تم إلغاء الامتحان واحتساب درجة 0 ⛔',
-      `تم رصد مغادرة بيئة الامتحان الصارمة مخالفةً لقواعد النزاهة الأكاديمية.`
-    );
-  };
-
-  // Trigger Violation Event
-  const registerViolation = (reason: string) => {
-    if (!hasStartedExam || isSubmitted || isCancelledDueToViolation) return;
-    if (exam.enableAntiCheat === false) return;
-
-    const maxAllowed = exam.maxViolationsAllowed !== undefined ? exam.maxViolationsAllowed : 1;
-    const newViolations = violationsCount + 1;
-    setViolationsCount(newViolations);
-    setLastViolationReason(reason);
-
-    // If cancel on leave is enabled AND threshold reached -> Cancel instantly
-    if (exam.cancelOnLeave !== false && newViolations >= maxAllowed) {
-      handleCancelExamDueToViolation(reason);
+      setIsAmbientFocusActive(false);
+      addToast('info', 'تم إيقاف صوت التركيز 🔇', 'العودة للأجواء الصامتة.');
     } else {
-      setShowViolationModal(true);
+      try {
+        const AudioCtx = window.AudioContext || (window as any).webkitAudioContext;
+        if (!AudioCtx) {
+          addToast('info', 'المتصفح لا يدعم مولد الأصوات');
+          return;
+        }
+        const ctx = new AudioCtx();
+        const bufferSize = ctx.sampleRate * 2;
+        const buffer = ctx.createBuffer(1, bufferSize, ctx.sampleRate);
+        const data = buffer.getChannelData(0);
+        let lastOut = 0.0;
+        for (let i = 0; i < bufferSize; i++) {
+          const white = Math.random() * 2 - 1;
+          data[i] = (lastOut + 0.02 * white) / 1.02;
+          lastOut = data[i];
+          data[i] *= 1.5;
+        }
+        const noise = ctx.createBufferSource();
+        noise.buffer = buffer;
+        noise.loop = true;
+
+        const filter = ctx.createBiquadFilter();
+        filter.type = 'lowpass';
+        filter.frequency.value = 400;
+
+        const gain = ctx.createGain();
+        gain.gain.value = 0.04;
+
+        noise.connect(filter);
+        filter.connect(gain);
+        gain.connect(ctx.destination);
+        noise.start();
+
+        audioCtxRef.current = ctx;
+        setIsAmbientFocusActive(true);
+        addToast('success', 'تم تفعيل صوت التركيز الذهني 🎧', 'صوت خلفي خافت ومريح للمساعدة على التركيز وإبعاد التشتت.');
+      } catch {
+        addToast('info', 'تعذر تشغيل مولد الصوت');
+      }
     }
   };
-
-  // Anti-Cheat: Event Listeners for Strict Environment
-  useEffect(() => {
-    if (!hasStartedExam || isSubmitted || isCancelledDueToViolation) return;
-
-    const handleVisibilityChange = () => {
-      if (document.hidden) {
-        registerViolation('تبديل التبويب أو تصغير نافذة الامتحان أثناء الجلسة');
-      }
-    };
-
-    const handleWindowBlur = () => {
-      registerViolation('الخروج من نافذة الامتحان أو النقر على تطبيق خارجي');
-    };
-
-    const handleFullscreenChange = () => {
-      const isStillFullscreen = !!document.fullscreenElement;
-      setIsFullscreen(isStillFullscreen);
-      if (!isStillFullscreen && exam.strictFullscreenEnforced !== false) {
-        registerViolation('مغادرة وضع ملء الشاشة الصارم (Fullscreen)');
-      }
-    };
-
-    const handleContextMenu = (e: MouseEvent) => {
-      if (exam.preventCopyPaste !== false) {
-        e.preventDefault();
-        addToast('warning', 'ميزة محظورة', 'النقر بالزر الأيمن معطل لحماية بيئة الامتحان.');
-      }
-    };
-
-    const handleCopyPaste = (e: ClipboardEvent) => {
-      if (exam.preventCopyPaste !== false) {
-        e.preventDefault();
-        addToast('warning', 'ميزة محظورة', 'النسخ واللصق معطل تماماً أثناء الامتحان.');
-      }
-    };
-
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (exam.preventCopyPaste !== false) {
-        // Block F12, Ctrl+U, Ctrl+Shift+I, PrintScreen, Ctrl+C, Ctrl+V, Ctrl+S, Alt+Tab, Escape, F5, Ctrl+R
-        if (
-          e.key === 'F12' ||
-          e.key === 'F5' ||
-          e.key === 'F11' ||
-          e.key === 'PrintScreen' ||
-          (e.ctrlKey && ['c', 'v', 'u', 's', 'a', 'p', 'r', 'w'].includes(e.key.toLowerCase())) ||
-          (e.ctrlKey && e.shiftKey && ['i', 'j', 'c'].includes(e.key.toLowerCase())) ||
-          (e.altKey && (e.key === 'ArrowLeft' || e.key === 'ArrowRight' || e.key === 'Tab'))
-        ) {
-          e.preventDefault();
-          e.stopPropagation();
-          addToast('warning', 'اختصار محظور', 'هذا الاختصار معطل داخل بيئة الامتحان الصارمة لحماية النزاهة.');
-        }
-      }
-    };
-
-    // Prevent browser back navigation during active exam
-    const handlePopState = (e: PopStateEvent) => {
-      e.preventDefault();
-      window.history.pushState(null, '', window.location.href);
-      addToast('warning', 'ممنوع الرجوع للخلف', 'لا يمكنك الخروج من صفحة الامتحان إلا بعد تسليمه رسمياً.');
-    };
-    window.history.pushState(null, '', window.location.href);
-    window.addEventListener('popstate', handlePopState);
-
-    // Prevent accidental tab close or page reload
-    const handleBeforeUnload = (e: BeforeUnloadEvent) => {
-      e.preventDefault();
-      e.returnValue = 'الامتحان جاري حالياً. مغادرتك ستؤدي إلى إلغاء الامتحان أو رسوبك!';
-      return e.returnValue;
-    };
-    window.addEventListener('beforeunload', handleBeforeUnload);
-
-    document.addEventListener('visibilitychange', handleVisibilityChange);
-    window.addEventListener('blur', handleWindowBlur);
-    document.addEventListener('fullscreenchange', handleFullscreenChange);
-    document.addEventListener('contextmenu', handleContextMenu);
-    document.addEventListener('copy', handleCopyPaste);
-    document.addEventListener('paste', handleCopyPaste);
-    document.addEventListener('cut', handleCopyPaste);
-    window.addEventListener('keydown', handleKeyDown, true);
-
-    return () => {
-      window.removeEventListener('popstate', handlePopState);
-      window.removeEventListener('beforeunload', handleBeforeUnload);
-      document.removeEventListener('visibilitychange', handleVisibilityChange);
-      window.removeEventListener('blur', handleWindowBlur);
-      document.removeEventListener('fullscreenchange', handleFullscreenChange);
-      document.removeEventListener('contextmenu', handleContextMenu);
-      document.removeEventListener('copy', handleCopyPaste);
-      document.removeEventListener('paste', handleCopyPaste);
-      document.removeEventListener('cut', handleCopyPaste);
-      window.removeEventListener('keydown', handleKeyDown, true);
-    };
-  }, [hasStartedExam, isSubmitted, isCancelledDueToViolation, violationsCount, exam]);
-
-  // Countdown timer
-  useEffect(() => {
-    if (!hasStartedExam || isSubmitted || isCancelledDueToViolation) return;
-
-    const timer = setInterval(() => {
-      setTimeLeftSeconds((prev) => {
-        if (prev <= 1) {
-          clearInterval(timer);
-          handleSubmitExam();
-          return 0;
-        }
-        return prev - 1;
-      });
-    }, 1000);
-
-    return () => clearInterval(timer);
-  }, [hasStartedExam, isSubmitted, isCancelledDueToViolation, selectedAnswers]);
 
   const handleSelectAnswer = (qId: string, answer: any) => {
     if (isSubmitted || isCancelledDueToViolation) return;
@@ -541,69 +702,6 @@ export const ExamEngine: React.FC<ExamEngineProps> = ({ exam: propExam, onExit }
     utterance.onend = () => setIsPlayingAudio(false);
     utterance.onerror = () => setIsPlayingAudio(false);
     window.speechSynthesis.speak(utterance);
-  };
-
-  const handleSubmitExam = () => {
-    if (isSubmitted || isCancelledDueToViolation) return;
-
-    setShowSubmitConfirmModal(false);
-
-    let totalScore = 0;
-    let maxScore = 0;
-
-    exam.questions.forEach((q) => {
-      const qMax =
-        q.type === 'passage' && q.passageQuestions
-          ? q.passageQuestions.reduce((acc, pq) => acc + pq.points, 0)
-          : q.points;
-      maxScore += qMax;
-
-      const evalResult = evaluateQuestion(q, selectedAnswers[q.id]);
-      totalScore += evalResult.pointsEarned;
-    });
-
-    const percentage = maxScore > 0 ? Math.round((totalScore / maxScore) * 100) : 0;
-    const passed = percentage >= exam.passingScorePercent;
-
-    const result = submitExamAttempt({
-      examId: exam.id,
-      examTitle: exam.title,
-      studentId: currentUser?.id || 'anon_student',
-      studentName: currentUser?.name || 'طالب متميز',
-      studentPhone: currentUser?.phone,
-      score: totalScore,
-      totalPoints: maxScore,
-      percentage,
-      passed,
-      timeSpentSeconds: Math.max(1, exam.durationMinutes * 60 - timeLeftSeconds),
-      answers: selectedAnswers,
-      violationsCount,
-      isCancelledDueToViolation: false,
-    });
-
-    setSubmissionResult(result);
-    setIsSubmitted(true);
-
-    if (document.fullscreenElement && document.exitFullscreen) {
-      try {
-        document.exitFullscreen();
-      } catch {}
-    }
-
-    if (passed) {
-      confetti({
-        particleCount: 120,
-        spread: 80,
-        origin: { y: 0.6 },
-      });
-      addToast('success', 'تهانينا! لقد اجتزت الامتحان بنجاح 🎓', `حصلت على ${percentage}%`);
-    } else {
-      addToast(
-        'warning',
-        'لم تحقق درجة النجاح المطلوبة',
-        `حصلت على ${percentage}%. يمكنك مراجعة الإجابات النموذجية وإعادة المحاولة.`
-      );
-    }
   };
 
   const formatTime = (secs: number) => {
@@ -919,6 +1017,208 @@ export const ExamEngine: React.FC<ExamEngineProps> = ({ exam: propExam, onExit }
   }
 
   // -------------------------------------------------------------
+  // CONCEPT SHEET DEFINITION & SEARCH FILTER
+  // -------------------------------------------------------------
+  const conceptItems = React.useMemo(() => {
+    const items: Array<{
+      id: string;
+      category: 'laws' | 'rules' | 'notes' | 'tips';
+      categoryLabel: string;
+      title: string;
+      formula?: string;
+      details: string;
+      badge?: string;
+    }> = [];
+
+    const subj = (exam.subject || '').toLowerCase();
+    
+    if (subj.includes('رياض') || subj.includes('math') || subj.includes('هندس') || subj.includes('جبر') || subj.includes('تفاضل')) {
+      items.push(
+        {
+          id: 'math-1',
+          category: 'laws',
+          categoryLabel: 'قوانين ومعادلات',
+          title: 'قانون المميز وحل المعادلات التربيعية',
+          formula: 'x = (-b ± √(b² - 4ac)) / (2a)',
+          details: 'المميز Δ = b² - 4ac : إذا كان Δ > 0 يوجد جذران حقيقيان مختلفان، وإذا كان = 0 يوجد جذر مكرر، وإذا كان < 0 فالجذران مركبان.',
+          badge: 'جبر أساسي'
+        },
+        {
+          id: 'math-2',
+          category: 'laws',
+          categoryLabel: 'قوانين ومعادلات',
+          title: 'المتطابقات المثلثية الأساسية',
+          formula: 'sin²(θ) + cos²(θ) = 1 | 1 + tan²(θ) = sec²(θ)',
+          details: 'تذكر أن: sin(2θ) = 2 sin(θ) cos(θ) و cos(2θ) = cos²(θ) - sin²(θ).',
+          badge: 'حساب مثلثات'
+        },
+        {
+          id: 'math-3',
+          category: 'laws',
+          categoryLabel: 'قوانين ومعادلات',
+          title: 'قواعد الاشتقاق والتفاضل الأساسية',
+          formula: 'd/dx [xⁿ] = n·xⁿ⁻¹ | d/dx [u·v] = u\'v + uv\'',
+          details: 'مشتقة القسمة: [u/v]\' = (u\'v - uv\') / v² | مشتقة الدالة المركبة (قاعدة السلسلة): f\'(g(x))·g\'(x).',
+          badge: 'تفاضل وتكامل'
+        },
+        {
+          id: 'math-4',
+          category: 'rules',
+          categoryLabel: 'قواعد وملاحظات',
+          title: 'المحددات والمصفوفات',
+          formula: 'det(A·B) = det(A) · det(B) | A⁻¹ = (1/det(A)) · adj(A)',
+          details: 'تكون المصفوفة غير قابلة للعكس (منفردة) إذا كان محددها يساوي صفراً.',
+          badge: 'جبر خطي'
+        }
+      );
+    } else if (subj.includes('فيز') || subj.includes('physic')) {
+      items.push(
+        {
+          id: 'phys-1',
+          category: 'laws',
+          categoryLabel: 'قوانين ومعادلات',
+          title: 'معادلات الحركة الخطية بتسارع منتظم',
+          formula: 'v = v₀ + at | d = v₀t + ½at² | v² = v₀² + 2ad',
+          details: 'في السقوط الحر يتم استبدال التسارع a بعجلة الجاذبية g (≈ 9.8 m/s²).',
+          badge: 'ميكانيكا'
+        },
+        {
+          id: 'phys-2',
+          category: 'laws',
+          categoryLabel: 'قوانين ومعادلات',
+          title: 'قانون أوم وحساب القدرة الكهربائية',
+          formula: 'V = I · R | P = V · I = I² · R = V² / R',
+          details: 'توصيل المقاومات: في التوالي R_eq = Σ R ، وفي التوازي 1/R_eq = Σ (1/R).',
+          badge: 'كهربية'
+        },
+        {
+          id: 'phys-3',
+          category: 'laws',
+          categoryLabel: 'قوانين ومعادلات',
+          title: 'قانون نيوتن والشغل والطاقة',
+          formula: 'F = m · a | W = F · d · cos(θ) | KE = ½ m v²',
+          details: 'مبدأ بقاء الطاقة: الطاقة الكلية تظل ثابتة ولا تفنى ولا تستحدث من العدم.',
+          badge: 'ديناميكا'
+        }
+      );
+    } else if (subj.includes('كيم') || subj.includes('chem')) {
+      items.push(
+        {
+          id: 'chem-1',
+          category: 'laws',
+          categoryLabel: 'قوانين ومعادلات',
+          title: 'قانون الغاز المثالي وحساب عدد المولات',
+          formula: 'P · V = n · R · T | n = m / M',
+          details: 'حيث n عدد المولات، m الكتلة بالجرام، M الكتلة المولية، R = 0.0821 L·atm/(mol·K).',
+          badge: 'كيمياء عامة'
+        },
+        {
+          id: 'chem-2',
+          category: 'rules',
+          categoryLabel: 'قواعد وملاحظات',
+          title: 'الرقم الهيدروجيني والاتزان الأيوني',
+          formula: 'pH = -log[H⁺] | pH + pOH = 14',
+          details: 'المحلول حمضي إذا كان pH < 7، ومتعادل عند pH = 7، وقاعدي إذا كان pH > 7.',
+          badge: 'اتزان كيميائي'
+        }
+      );
+    } else if (subj.includes('عرب') || subj.includes('arabic') || subj.includes('لغة')) {
+      items.push(
+        {
+          id: 'ar-1',
+          category: 'rules',
+          categoryLabel: 'قواعد وملاحظات',
+          title: 'علامات الإعراب الأصلية والفرعية',
+          formula: 'الرفع: الضمة (أصلية) / الألف والواو وثبوت النون (فرعية)',
+          details: 'النصب: الفتحة (أصلية) / الياء والكسرة والألف وحذف النون (فرعية). الجر: الكسرة / الياء والفتحة في الممنوع من الصرف.',
+          badge: 'نحو'
+        },
+        {
+          id: 'ar-2',
+          category: 'rules',
+          categoryLabel: 'قواعد وملاحظات',
+          title: 'الأفعال الناسخة والحروف الناسخة',
+          formula: 'كان + اسم مرفوع + خبر منصوب | إنّ + اسم منصوب + خبر مرفوع',
+          details: 'كاد وأخواتها تعمل عمل كان بشرط أن يكون خبرها جملة فعلية فعلها مضارع.',
+          badge: 'نواسخ'
+        },
+        {
+          id: 'ar-3',
+          category: 'notes',
+          categoryLabel: 'مفاهيم ونقاط ذهبية',
+          title: 'أسرار علم البلاغة والبيان',
+          formula: 'التشبيه | الاستعارة (تصريحية أو مكنية) | الكناية',
+          details: 'الاستعارة المكنية حذف فيها المشبه به ورمز له بشيء من لوازمه، وسر الجمال: التشخيص، التجسيم، أو التوضيح.',
+          badge: 'بلاغة'
+        }
+      );
+    } else if (subj.includes('انجليز') || subj.includes('english')) {
+      items.push(
+        {
+          id: 'en-1',
+          category: 'rules',
+          categoryLabel: 'قواعد وملاحظات',
+          title: 'Conditional Sentences (If Conditionals)',
+          formula: 'Zero: If + Pres, Pres | First: If + Pres, will + V | Second: If + Past, would + V | Third: If + Past Perf, would have + V3',
+          details: 'Pay attention to inversions (Had I known..., Were he to come...).',
+          badge: 'Grammar'
+        },
+        {
+          id: 'en-2',
+          category: 'rules',
+          categoryLabel: 'قواعد وملاحظات',
+          title: 'Passive Voice Formula',
+          formula: 'Object + Verb to be (in correct tense) + Past Participle (V3)',
+          details: 'Continuous: being + V3 | Perfect: been + V3 | Modals: modal + be + V3.',
+          badge: 'Grammar'
+        }
+      );
+    }
+
+    // Universal Golden Exam Tips
+    items.push(
+      {
+        id: 'tip-1',
+        category: 'tips',
+        categoryLabel: 'إرشادات الحل السريع',
+        title: 'استراتيجية الاستبعاد الذكي (Elimination Method)',
+        details: 'اقرأ رأس السؤال بتركيز وحدد الكلمات المفتاحية. استبعد فوراً الإجابات غير المنطقية وركز على المفاضلة بين الخيارات المتبقية.',
+        badge: 'مهارة تفوق ⚡'
+      },
+      {
+        id: 'tip-2',
+        category: 'tips',
+        categoryLabel: 'إرشادات الحل السريع',
+        title: 'إدارة وقت الاختبار وتجنب التعليق',
+        details: 'إذا واجهت سؤالاً معقداً يستغرق وقتاً طويلاً، استخدم زر تعليم السؤال (العلم 🚩) وانتقل فوراً للسؤال التالي، ثم عد إليه لاحقاً.',
+        badge: 'إدارة الوقت ⏱️'
+      },
+      {
+        id: 'tip-3',
+        category: 'notes',
+        categoryLabel: 'مفاهيم ونقاط ذهبية',
+        title: 'التحقق من الوحدات والمعطيات',
+        details: 'تأكد دائماً من مطابقة وحدات القياس (ثانية/دقيقة، سم/متر، جرام/كجم) قبل إجراء العمليات الحسابية النهائية.',
+        badge: 'دقة حسابية 🎯'
+      }
+    );
+
+    return items;
+  }, [exam.subject]);
+
+  const filteredConcepts = conceptItems.filter((item) => {
+    if (activeConceptTab !== 'all' && item.category !== activeConceptTab) return false;
+    if (!conceptSheetSearch.trim()) return true;
+    const q = conceptSheetSearch.toLowerCase();
+    return (
+      item.title.toLowerCase().includes(q) ||
+      item.details.toLowerCase().includes(q) ||
+      (item.formula && item.formula.toLowerCase().includes(q)) ||
+      (item.badge && item.badge.toLowerCase().includes(q))
+    );
+  });
+
+  // -------------------------------------------------------------
   // VIEW 3: IN-EXAM ACTIVE SESSION / RESULT REVIEW
   // -------------------------------------------------------------
   const inActiveExamSession = hasStartedExam && !isSubmitted && !isCancelledDueToViolation;
@@ -929,11 +1229,152 @@ export const ExamEngine: React.FC<ExamEngineProps> = ({ exam: propExam, onExit }
         inActiveExamSession
           ? 'fixed inset-0 z-[99999] w-screen h-screen overflow-y-auto overscroll-none touch-pan-y p-3 sm:p-6'
           : 'w-full max-w-6xl mx-auto p-2 sm:p-4 rounded-3xl'
-      } space-y-5 text-right transition-colors duration-300 ${getThemeClass()} ${
+      } space-y-5 text-right transition-colors duration-300 relative ${getThemeClass()} ${
         exam.preventCopyPaste !== false ? 'select-none' : ''
       }`}
       ref={containerRef}
     >
+      {/* Background Anti-Leak Watermark in Active Session */}
+      {inActiveExamSession && (
+        <div className="fixed inset-0 pointer-events-none z-0 opacity-[0.03] dark:opacity-[0.04] flex flex-wrap items-center justify-center gap-16 overflow-hidden select-none" aria-hidden="true">
+          {Array.from({ length: 18 }).map((_, i) => (
+            <div key={i} className="transform -rotate-12 text-sm font-black font-mono text-slate-500 whitespace-nowrap">
+              🔒 {currentUser?.name || currentUser?.email || 'STUDENT_SESSION'} • {exam.title} • {exam.id.slice(0, 8)}
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* Interactive Concept & Formula Sheet Modal */}
+      {isConceptSheetOpen && (
+        <div className="fixed inset-0 z-50 bg-black/70 backdrop-blur-md flex items-center justify-center p-3 sm:p-6 animate-fade-in text-right" dir="rtl">
+          <div className="w-full max-w-3xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-slate-900 dark:text-white rounded-[32px] overflow-hidden shadow-2xl relative flex flex-col max-h-[90vh]">
+            
+            {/* Header */}
+            <div className="p-5 sm:p-6 bg-gradient-to-r from-amber-500/10 via-cyan-500/10 to-indigo-500/10 dark:from-slate-950 dark:to-slate-900 border-b border-slate-200 dark:border-slate-800 flex items-center justify-between gap-4 shrink-0">
+              <div className="flex items-center gap-3">
+                <div className="w-12 h-12 rounded-2xl bg-amber-500/20 text-amber-500 border border-amber-500/30 flex items-center justify-center">
+                  <Lightbulb className="w-6 h-6" />
+                </div>
+                <div>
+                  <h3 className="text-lg sm:text-xl font-black text-slate-900 dark:text-white">
+                    ورقة المفاهيم والمعادلات والقواعد المعتمدة 💡
+                  </h3>
+                  <p className="text-xs text-slate-500 dark:text-slate-400">
+                    مرجع أكاديمي موثق لمساعدتك في تذكر القوانين واستراتيجيات الحل أثناء الاختبار.
+                  </p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setIsConceptSheetOpen(false)}
+                className="p-2.5 rounded-2xl bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-600 dark:text-slate-300 transition-colors cursor-pointer"
+              >
+                ✕
+              </button>
+            </div>
+
+            {/* Search and Category Filter Toolbar */}
+            <div className="p-4 bg-slate-50 dark:bg-slate-950 border-b border-slate-200 dark:border-slate-800 space-y-3 shrink-0">
+              <input
+                type="text"
+                value={conceptSheetSearch}
+                onChange={(e) => setConceptSheetSearch(e.target.value)}
+                placeholder="ابحث في القوانين، القواعد، أو المصطلحات المفتاحية..."
+                className="w-full px-4 py-2.5 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-xs font-bold focus:border-amber-500 focus:outline-none"
+              />
+
+              <div className="flex items-center gap-2 overflow-x-auto pb-1 hide-scrollbar">
+                {[
+                  { id: 'all', label: 'كافة المفاهيم' },
+                  { id: 'laws', label: 'قوانين ومعادلات 📐' },
+                  { id: 'rules', label: 'قواعد وضوابط 📜' },
+                  { id: 'notes', label: 'مفاهيم ذهبية ✨' },
+                  { id: 'tips', label: 'إرشادات الحل ⚡' },
+                ].map((tab) => (
+                  <button
+                    key={tab.id}
+                    type="button"
+                    onClick={() => setActiveConceptTab(tab.id as any)}
+                    className={`px-3.5 py-1.5 rounded-xl text-xs font-black whitespace-nowrap transition-all cursor-pointer ${
+                      activeConceptTab === tab.id
+                        ? 'bg-amber-500 text-slate-950 shadow-md shadow-amber-500/20'
+                        : 'bg-white dark:bg-slate-900 text-slate-600 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-800'
+                    }`}
+                  >
+                    {tab.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Concept Cards Body */}
+            <div className="p-5 sm:p-6 overflow-y-auto space-y-4">
+              {filteredConcepts.length === 0 ? (
+                <div className="text-center py-10 text-slate-400">
+                  <BookOpen className="w-12 h-12 mx-auto mb-2 opacity-40" />
+                  <p className="text-xs font-bold">لا توجد نتائج مطابقة لبحثك في ورقة المفاهيم.</p>
+                </div>
+              ) : (
+                filteredConcepts.map((c) => (
+                  <div
+                    key={c.id}
+                    className="p-4 sm:p-5 rounded-2xl border border-slate-200 dark:border-slate-800 bg-slate-50/70 dark:bg-slate-950/70 space-y-2 hover:border-amber-400/50 transition-colors"
+                  >
+                    <div className="flex items-center justify-between gap-2 flex-wrap">
+                      <div className="flex items-center gap-2">
+                        <span className="w-2 h-2 rounded-full bg-amber-500 shrink-0" />
+                        <h4 className="text-sm font-black text-slate-900 dark:text-white">{c.title}</h4>
+                      </div>
+                      {c.badge && (
+                        <span className="px-2 py-0.5 rounded-lg bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/20 text-[10px] font-black">
+                          {c.badge}
+                        </span>
+                      )}
+                    </div>
+
+                    {c.formula && (
+                      <div
+                        dir="ltr"
+                        className="p-3 rounded-xl bg-slate-900 text-emerald-400 font-mono text-xs sm:text-sm font-black border border-slate-800 text-left flex items-center justify-between"
+                      >
+                        <span className="truncate">{c.formula}</span>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            navigator.clipboard.writeText(c.formula || '');
+                            addToast('info', 'تم نسخ المعادلة بنجاح');
+                          }}
+                          className="px-2 py-1 rounded bg-slate-800 hover:bg-slate-700 text-[10px] text-slate-300 ml-2 shrink-0 cursor-pointer"
+                        >
+                          نسخ
+                        </button>
+                      </div>
+                    )}
+
+                    <p className="text-xs text-slate-600 dark:text-slate-300 leading-relaxed font-bold">
+                      {c.details}
+                    </p>
+                  </div>
+                ))
+              )}
+            </div>
+
+            {/* Footer */}
+            <div className="p-4 bg-slate-50 dark:bg-slate-950 border-t border-slate-200 dark:border-slate-800 flex items-center justify-between text-xs text-slate-400 shrink-0">
+              <span>ورقة المفاهيم مخصصة للاسترشاد السريع أثناء الحل.</span>
+              <button
+                type="button"
+                onClick={() => setIsConceptSheetOpen(false)}
+                className="px-5 py-2 rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-950 font-black text-xs cursor-pointer shadow-md"
+              >
+                العودة لأسئلة الامتحان
+              </button>
+            </div>
+
+          </div>
+        </div>
+      )}
       {/* Violation Warning Modal */}
       {showViolationModal && (
         <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4">
@@ -1204,6 +1645,32 @@ export const ExamEngine: React.FC<ExamEngineProps> = ({ exam: propExam, onExit }
                 </button>
               </div>
 
+              {/* Concept Sheet Quick Trigger */}
+              <button
+                type="button"
+                onClick={() => setIsConceptSheetOpen(true)}
+                className="px-3.5 py-2 rounded-xl bg-amber-500/15 hover:bg-amber-500/25 text-amber-700 dark:text-amber-300 border border-amber-500/40 text-xs font-black flex items-center gap-1.5 cursor-pointer shadow-sm"
+                title="فتح ورقة المفاهيم والقواعد والمعادلات"
+              >
+                <Lightbulb className="w-3.5 h-3.5 text-amber-500" />
+                <span>ورقة المفاهيم 💡</span>
+              </button>
+
+              {/* Ambient Focus Audio Trigger */}
+              <button
+                type="button"
+                onClick={toggleAmbientFocus}
+                className={`px-3 py-2 rounded-xl border text-xs font-black flex items-center gap-1.5 cursor-pointer transition-all ${
+                  isAmbientFocusActive
+                    ? 'bg-emerald-500 text-slate-950 border-emerald-400 shadow-md shadow-emerald-500/30 font-black'
+                    : 'bg-slate-100 dark:bg-slate-950 border-slate-200 dark:border-slate-800 text-slate-700 dark:text-slate-300 hover:bg-slate-200'
+                }`}
+                title={isAmbientFocusActive ? 'إيقاف صوت التركيز' : 'تشغيل أصوات التركيز الذهني الهادئة'}
+              >
+                <Headphones className="w-3.5 h-3.5" />
+                <span className="hidden sm:inline">{isAmbientFocusActive ? 'تركيز 🎧' : 'صوت تركيز'}</span>
+              </button>
+
               {/* Scratchpad Button */}
               <button
                 type="button"
@@ -1258,6 +1725,34 @@ export const ExamEngine: React.FC<ExamEngineProps> = ({ exam: propExam, onExit }
           )}
         </div>
       </div>
+
+      {/* Motivational Progress Milestone Bar */}
+      {!isSubmitted && (
+        <div className="p-3 rounded-2xl bg-white/80 dark:bg-slate-900/80 border border-slate-200 dark:border-slate-800 shadow-sm flex items-center justify-between gap-4 text-xs">
+          <div className="flex items-center gap-2 font-bold text-slate-600 dark:text-slate-300 shrink-0">
+            <Sparkles className="w-4 h-4 text-amber-500 shrink-0" />
+            <span>
+              نسبة الإنجاز:{' '}
+              <strong className="text-cyan-600 dark:text-cyan-400 font-black">
+                {Math.round((answeredCount / (totalQuestions || 1)) * 100)}%
+              </strong>
+            </span>
+          </div>
+
+          <div className="flex-1 bg-slate-100 dark:bg-slate-950 h-2.5 rounded-full overflow-hidden border border-slate-200 dark:border-slate-800">
+            <div
+              className="bg-gradient-to-r from-cyan-500 via-teal-500 to-emerald-500 h-full rounded-full transition-all duration-300"
+              style={{ width: `${Math.round((answeredCount / (totalQuestions || 1)) * 100)}%` }}
+            />
+          </div>
+
+          <div className="text-[11px] font-bold text-slate-500 dark:text-slate-400 shrink-0">
+            {answeredCount === totalQuestions
+              ? '🎉 أتممت كافة الأسئلة بنجاح!'
+              : `متبقي ${totalQuestions - answeredCount} أسئلة`}
+          </div>
+        </div>
+      )}
 
       {/* MAIN EXAMINATION AREA VS RESULT REVIEW */}
       {!isSubmitted ? (
