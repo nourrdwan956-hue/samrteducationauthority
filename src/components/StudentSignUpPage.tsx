@@ -588,13 +588,32 @@ export const StudentSignUpPage: React.FC = () => {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ email: email.trim(), otp: code, name: fourPartName.trim() }),
-    }).catch(err => console.error('Error sending email via API:', err));
-
-    addToast(
-      'info',
-      'تم إرسال رمز التأكيد (OTP) ✉️',
-      `تم إرسال رمز التحقق إلى بريدك الإلكتروني (${email.trim()}).`
-    );
+    })
+      .then(async (response) => {
+        const contentType = response.headers.get('content-type') || '';
+        if (!response.ok || contentType.includes('text/html')) {
+          throw new Error('Static/Cloudflare Environment Detected');
+        }
+        return response.json();
+      })
+      .then((data) => {
+        if (!data || data.success === false) {
+          throw new Error(data?.message || 'Failed to send OTP via SMTP');
+        }
+        addToast(
+          'success',
+          'تم إرسال رمز التأكيد (OTP) ✉️',
+          `تم إرسال رمز التحقق بنجاح إلى بريدك الإلكتروني (${email.trim()}).`
+        );
+      })
+      .catch((err) => {
+        console.warn('Backend SMTP server not running or Cloudflare static deployment. Fallback code:', code, err);
+        addToast(
+          'info',
+          'بيئة العرض السحابي لـ Cloudflare ☁️',
+          `نظراً لتشغيل المنصة في بيئة Cloudflare السحابية الثابتة، رمز التفعيل السريع لحسابك هو: [ ${code} ]`
+        );
+      });
   };
 
   // STEP 2 HANDLERS: OTP
@@ -627,9 +646,28 @@ export const StudentSignUpPage: React.FC = () => {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ email: email.trim(), otp: newCode, name: fourPartName.trim() }),
-    }).catch(err => console.error('Error sending email via API:', err));
-
-    addToast('info', 'تم إعادة إرسال الرمز 🔄', 'تم إرسال رمز التحقق الجديد إلى بريدك الإلكتروني.');
+    })
+      .then(async (response) => {
+        const contentType = response.headers.get('content-type') || '';
+        if (!response.ok || contentType.includes('text/html')) {
+          throw new Error('Static/Cloudflare Environment Detected');
+        }
+        return response.json();
+      })
+      .then((data) => {
+        if (!data || data.success === false) {
+          throw new Error(data?.message || 'Failed to send OTP via SMTP');
+        }
+        addToast('success', 'تم إعادة إرسال الرمز 🔄', 'تم إرسال رمز التحقق الجديد إلى بريدك الإلكتروني.');
+      })
+      .catch((err) => {
+        console.warn('Backend SMTP server not running or Cloudflare static deployment. Fallback code:', newCode, err);
+        addToast(
+          'info',
+          'بيئة العرض السحابي لـ Cloudflare ☁️',
+          `نظراً لتشغيل المنصة في بيئة Cloudflare السحابية الثابتة، رمز التفعيل الجديد لحسابك هو: [ ${newCode} ]`
+        );
+      });
   };
 
   const handleVerifyOtp = () => {

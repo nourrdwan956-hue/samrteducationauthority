@@ -16,8 +16,8 @@ async function startServer() {
     port: 465,
     secure: true,
     auth: {
-      user: 'nourrdwan956@gmail.com',
-      pass: 'lace pbey zike vive', // User provided app password
+      user: process.env.SMTP_USER || 'smarteducationauthority@gmail.com',
+      pass: process.env.SMTP_PASS || 'ljyf qeks rjeh tgfk', // User provided new app password
     },
   });
 
@@ -50,9 +50,10 @@ async function startServer() {
 
       const plainTextContent = `مرحباً بك ${displayName} في منظومة Smart Education Authority (SEA)\n\nرمز التحقق وتأكيد حسابك هو:\n${otp}\n\nصلاحية هذا الرمز هي 10 دقائق فقط.\nيرجى عدم مشاركة هذا الرمز مع أي شخص للحفاظ على أمان حسابك.\n\nطاقم تدريس عالي بالتعاون مع Smart Education Authority (SEA)`;
 
+      const senderEmail = process.env.SMTP_USER || 'smarteducationauthority@gmail.com';
       const mailOptions = {
-        from: '"Smart Education Authority" <nourrdwan956@gmail.com>',
-        replyTo: 'nourrdwan956@gmail.com',
+        from: `"Smart Education Authority" <${senderEmail}>`,
+        replyTo: senderEmail,
         to: email,
         subject: `رمز تأكيد حسابك - Smart Education Authority (SEA)`,
         text: plainTextContent,

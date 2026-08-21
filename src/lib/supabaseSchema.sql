@@ -212,3 +212,111 @@ ALTER TABLE public.support_tickets ENABLE ROW LEVEL SECURITY;
 -- Allow public read & write on support_tickets
 CREATE POLICY "Allow public read & write on support_tickets" ON public.support_tickets FOR ALL USING (true);
 
+-- 10. جدول البث المباشر والحصص التفاعلية (Live Sessions)
+CREATE TABLE IF NOT EXISTS public.live_sessions (
+    id TEXT PRIMARY KEY,
+    course_id TEXT,
+    module_id TEXT,
+    title TEXT NOT NULL,
+    date TEXT NOT NULL,
+    time TEXT NOT NULL,
+    duration_minutes INTEGER NOT NULL DEFAULT 60,
+    platform TEXT,
+    meeting_url TEXT,
+    youtube_video_id TEXT,
+    status TEXT DEFAULT 'scheduled',
+    description TEXT,
+    created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- 11. جدول سجل العمليات الإدارية (Admin Logs)
+CREATE TABLE IF NOT EXISTS public.admin_logs (
+    id TEXT PRIMARY KEY,
+    action TEXT NOT NULL,
+    teacher_name TEXT NOT NULL,
+    teacher_email TEXT NOT NULL,
+    course_name TEXT,
+    details TEXT,
+    created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- 12. جدول كروت وأكواد الشحن المطبوعة (Printed Codes Batches)
+CREATE TABLE IF NOT EXISTS public.printed_codes_batches (
+    id TEXT PRIMARY KEY,
+    platform_id TEXT NOT NULL REFERENCES public.platforms(id) ON DELETE CASCADE,
+    teacher_id TEXT,
+    teacher_name TEXT,
+    teacher_phone TEXT,
+    course_id TEXT NOT NULL REFERENCES public.courses(id) ON DELETE CASCADE,
+    course_title TEXT,
+    batch_number INTEGER,
+    quantity INTEGER,
+    course_price NUMERIC(10, 2),
+    total_course_value NUMERIC(10, 2),
+    platform_fee_rate NUMERIC(5, 2),
+    total_platform_fee NUMERIC(10, 2),
+    paid_codes_count INTEGER DEFAULT 0,
+    settled_amount NUMERIC(10, 2) DEFAULT 0,
+    remaining_due_amount NUMERIC(10, 2) DEFAULT 0,
+    status TEXT DEFAULT 'pending',
+    codes JSONB DEFAULT '[]'::jsonb,
+    notes TEXT,
+    created_at TIMESTAMPTZ DEFAULT NOW(),
+    updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- 13. جدول الواجبات والمهام الدراسية المتقدمة (Assignments)
+CREATE TABLE IF NOT EXISTS public.assignments (
+    id TEXT PRIMARY KEY,
+    course_id TEXT NOT NULL REFERENCES public.courses(id) ON DELETE CASCADE,
+    module_id TEXT,
+    lesson_id TEXT,
+    title TEXT NOT NULL,
+    description TEXT,
+    subject TEXT,
+    concept_sheet_title TEXT,
+    concept_sheet_content TEXT,
+    concept_sheet_attachment_url TEXT,
+    duration_minutes INTEGER,
+    passing_score_percent INTEGER,
+    total_points INTEGER,
+    questions_data JSONB DEFAULT '[]'::jsonb,
+    max_attempts INTEGER,
+    allow_concept_sheet BOOLEAN DEFAULT FALSE,
+    show_model_answer BOOLEAN DEFAULT TRUE,
+    auto_grading BOOLEAN DEFAULT TRUE,
+    due_date TEXT,
+    status TEXT,
+    is_published BOOLEAN DEFAULT TRUE,
+    created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- 14. جدول مهام وخطط المذاكرة (Study Tasks)
+CREATE TABLE IF NOT EXISTS public.study_tasks (
+    id TEXT PRIMARY KEY,
+    student_id TEXT NOT NULL REFERENCES public.users_profile(id) ON DELETE CASCADE,
+    course_id TEXT,
+    title TEXT NOT NULL,
+    description TEXT,
+    due_date TEXT,
+    due_time TEXT,
+    status TEXT,
+    priority TEXT,
+    created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- Enable RLS for additional tables
+ALTER TABLE public.live_sessions ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.admin_logs ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.printed_codes_batches ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.assignments ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.study_tasks ENABLE ROW LEVEL SECURITY;
+
+-- Allow public read & write policies for seamless platform operations
+CREATE POLICY "Allow public read & write on live_sessions" ON public.live_sessions FOR ALL USING (true);
+CREATE POLICY "Allow public read & write on admin_logs" ON public.admin_logs FOR ALL USING (true);
+CREATE POLICY "Allow public read & write on printed_codes_batches" ON public.printed_codes_batches FOR ALL USING (true);
+CREATE POLICY "Allow public read & write on assignments" ON public.assignments FOR ALL USING (true);
+CREATE POLICY "Allow public read & write on study_tasks" ON public.study_tasks FOR ALL USING (true);
+
+
