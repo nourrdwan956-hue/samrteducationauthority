@@ -8,7 +8,6 @@ import {
   ArrowLeft,
   ChevronRight,
   GraduationCap,
-  PlayCircle,
   FileText,
   Star,
   CheckCircle,
@@ -26,11 +25,16 @@ import {
   Headphones,
   HelpCircle,
   FileCode,
-  SlidersHorizontal,
-  Wallet,
   Check,
+  Phone,
+  Calendar,
+  Hammer,
+  Cpu,
+  Globe,
+  ArrowUpRight,
+  Shield,
+  Briefcase,
   Layers,
-  ChevronDown,
 } from 'lucide-react';
 
 export const HomeHero: React.FC = () => {
@@ -51,17 +55,11 @@ export const HomeHero: React.FC = () => {
   const [selectedGradeFilter, setSelectedGradeFilter] = useState<string>('all');
   const [activeFaqIndex, setActiveFaqIndex] = useState<number | null>(null);
 
-  const WHATSAPP_NUMBER = '01151157100';
-  const WHATSAPP_LINK_STUDENT = `https://wa.me/201151157100?text=${encodeURIComponent('السلام عليكم، أريد الاستفسار عن الكورسات والمنصات المتاحة للطلاب في SEA')}`;
-  const WHATSAPP_LINK_TEACHER = `https://wa.me/201151157100?text=${encodeURIComponent('السلام عليكم، أريد الاستفسار عن فتح وتجهيز منصة تعليمية خاصة لمعلم داخل نظام SEA')}`;
+  const CONTACT_NUMBER = '011';
+  const WHATSAPP_LINK_INQUIRIES = `https://wa.me/2011?text=${encodeURIComponent('السلام عليكم، أود الاستفسار عن تفاصيل منظومة SEA التعليمية')}`;
 
-  // Primary platform
+  // Primary platform (English)
   const primaryPlatform = platforms[0] || null;
-
-  // Real total student enrollment count across published courses
-  const totalRealEnrollments = useMemo(() => {
-    return courses.reduce((acc, c) => acc + (c.enrolledCount || 0), 0);
-  }, [courses]);
 
   // Real available published courses for students/visitors
   const featuredCourses = useMemo(() => {
@@ -75,7 +73,6 @@ export const HomeHero: React.FC = () => {
       );
 
       published.forEach((course) => {
-        // Filter search query & grade
         const matchesQuery =
           searchQuery.trim() === '' ||
           course.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -91,128 +88,141 @@ export const HomeHero: React.FC = () => {
       });
     });
 
-    // Sort to pick highest enrolled & newest
     return list.sort((a, b) => (b.course.enrolledCount || 0) - (a.course.enrolledCount || 0));
   }, [platforms, courses, searchQuery, selectedGradeFilter]);
 
-  // Real Student FAQ items based on system behavior
+  // Subject List as specified by user
+  const subjectsData = [
+    {
+      id: 'english',
+      name: 'اللغة الإنجليزية',
+      nameEn: 'English Language',
+      status: 'active',
+      desc: 'البوابة التعليمية المكتملة والمجهزة بالكامل بشرح تفاعلي متقدم وأقوى نظام لحماية المحاضرات والامتحانات الإلكترونية ضد التسريب.',
+      color: 'from-cyan-500 to-blue-600',
+      tag: 'متاح ومكتمل التطوير الفني',
+    },
+    {
+      id: 'arabic',
+      name: 'اللغة العربية',
+      nameEn: 'Arabic Language',
+      status: 'coming_soon',
+      desc: 'قيد التجهيز الأكاديمي بواسطة خبراء وموجهي المادة لتقديم تجربة تعليمية شاملة في البلاغة، النحو، والأدب.',
+      color: 'from-emerald-500 to-teal-600',
+      tag: 'مجدول للإطلاق في يوليو 2027',
+    },
+    {
+      id: 'math',
+      name: 'الرياضيات',
+      nameEn: 'Mathematics',
+      status: 'coming_soon',
+      desc: 'منظومة حسابية ذكية لتبسيط القوانين الهندسية والجبرية معززة ببنوك الأسئلة وأوراق المفاهيم التفاعلية.',
+      color: 'from-purple-500 to-indigo-600',
+      tag: 'مجدول للإطلاق في يوليو 2027',
+    },
+    {
+      id: 'sciences',
+      name: 'العلوم',
+      nameEn: 'Sciences',
+      status: 'coming_soon',
+      desc: 'شرح تطبيقي وتفاعلي معزز بنماذج ثلاثية الأبعاد لتبسيط فروع الفيزياء، الكيمياء، والأحياء.',
+      color: 'from-rose-500 to-red-600',
+      tag: 'مجدول للإطلاق في يوليو 2027',
+    },
+    {
+      id: 'integrated_sciences',
+      name: 'العلوم المتكاملة',
+      nameEn: 'Integrated Sciences',
+      status: 'coming_soon',
+      desc: 'المفهوم الحديث للعلوم الشاملة والمصمم خصيصاً لمواكبة أحدث معايير المناهج التعليمية المعتمدة.',
+      color: 'from-amber-500 to-orange-600',
+      tag: 'مجدول للإطلاق في يوليو 2027',
+    },
+    {
+      id: 'social_studies',
+      name: 'الدراسات الاجتماعية',
+      nameEn: 'Social Studies',
+      status: 'coming_soon',
+      desc: 'رحلة معرفية تفاعلية تعتمد على الفهم التاريخي والجغرافي المعزز بالخرائط الرقمية والجداول التحليلية.',
+      color: 'from-sky-500 to-blue-600',
+      tag: 'مجدول للإطلاق في يوليو 2027',
+    },
+  ];
+
   const studentFaqs = [
     {
-      question: 'كيف يمكنني التسجيل في الكورسات وتفعيل المحاضرات؟',
+      question: 'كيف يمكن تفعيل المحاضرات والاشتراك بالمنظومة؟',
       answer:
-        'يمكنك إنشاء حساب طالب جديد مجاناً بالبريد الإلكتروني، ثم تصفح الكورسات المتاحة. للتفعيل يمكنك استخدام شفرة السنتر المطبوعة (16 رقم) للشحن الفوري، أو الشحن عبر فودافون كاش / إنستا باي وسداد قيمة الكورس مباشرة من محفظتك الإلكترونية بالمنصة.',
+        'يمكن للطلاب التسجيل برقم الهاتف والبريد الإلكتروني، وتفعيل الكورسات فورياً باستخدام الأكواد المطبوعة، أو من خلال خيارات المحفظة الرقمية المدمجة في المنصة.',
     },
     {
-      question: 'كيف تعمل ورقة المفاهيم والقوانين أثناء حل الامتحانات والواجبات؟',
+      question: 'ما هي حماية الجهاز وما ميزتها الأمنية للطلاب؟',
       answer:
-        'تتيح المنظومة للطالب فتح نافذة جانبية مخصصة لورقة المفاهيم والقوانين الاسترشادية المعتمدة أثناء أداء الامتحان أو التكليف، مما يساعدك على الاستعانة بالقوانين والشرح النظري أثناء حل الأسئلة الصعبة بكل سهولة دون الخروج من صفحة الاختبار.',
+        'لحماية خصوصية حساب الطالب ومنع الاختراقات، يتم ربط كل حساب بجهاز واحد رئيسي وبصمة متصفح مميزة تلقائياً عند أول عملية دخول، مع حجب تسجيل الشاشة أو التقاط الصور.',
     },
     {
-      question: 'هل يمكنني مشاهدة الدروس من الهاتف المحمول؟ وكيف تُحفظ المحاضرات؟',
+      question: 'كيف تعمل ورقة المفاهيم المدمجة داخل الاختبارات والواجبات؟',
       answer:
-        'نعم، المنصة متوافقة تماماً مع كافة الهواتف والشاشات وأجهزة الحاسوب. يتم تسجيل وتحديد نسبة تقدمك وتذكر دقيقة التوقف تلقائياً في كل درس حتى تتمكن من استكمال المشاهدة في أي وقت ومن أي مكان.',
+        'تتيح المنظومة للطالب استعراض الملخصات والقوانين والقواعد الرسمية المعتمدة في نافذة موازية أثناء حل الأسئلة لتوفير الوقت والتركيز الكامل.',
     },
     {
-      question: 'ما هي حماية الجهاز ومشاركة الحسابات؟',
+      question: 'هل تدعم المنظومة المتابعة وتقارير أولياء الأمور؟',
       answer:
-        'لحماية خصوصيتك واشتراكك، يتم ربط حسابك بجهازك الرئيسي تلقائياً عند أول دخول. وفي حال احتجت لنقل الحساب لجهاز جديد يمكنك التواصل مع الدعم الفني المباشر عبر الواتساب لتفعيل الجهاز الجديد.',
-    },
-    {
-      question: 'كيف يتواصل ولي الأمر لمتابعة الدرجات والمستوى الأكاديمي؟',
-      answer:
-        'يتضمن ملف الطالب كوداً خاصاً ورقم ولي الأمر، وتوفر المنظومة رصداً فورياً لنتائج الامتحانات والواجبات مع إمكانية طباعة تقارير الأداء وتصديرها بصيغة PDF لمتابعة ولي الأمر أولاً بأول.',
+        'نعم، توفر المنصة نظام رصد فوري للدرجات والنسب المئوية لكل واجب واختبار، مع إمكانية تصدير تقارير الأداء وطباعتها لإطلاع ولي الأمر أولاً بأول.',
     },
   ];
 
   return (
-    <div className="w-full max-w-7xl mx-auto space-y-20 text-right relative pb-12">
+    <div className="w-full max-w-7xl mx-auto space-y-24 text-right relative pb-20 select-none px-4 sm:px-6 lg:px-8">
       
-      {/* Floating WhatsApp Quick Action Button for Direct Chat */}
-      <a
-        href={WHATSAPP_LINK_STUDENT}
-        target="_blank"
-        rel="noopener noreferrer"
-        title="تحدث معنا على الواتساب 01151157100"
-        className="fixed bottom-20 sm:bottom-6 left-4 sm:left-6 z-50 px-4 py-3 rounded-full bg-emerald-500 hover:bg-emerald-600 text-white font-black text-xs sm:text-sm shadow-2xl shadow-emerald-500/50 flex items-center gap-2.5 transition-all duration-300 hover:scale-105 group border-2 border-white/20"
-      >
-        <div className="relative">
-          <MessageCircle className="w-5 sm:w-6 h-5 sm:h-6 fill-white text-emerald-500" />
-          <span className="absolute -top-1 -right-1 w-2.5 h-2.5 rounded-full bg-amber-400 animate-ping" />
-        </div>
-        <span className="hidden xs:inline">واتساب SEA المباشر: {WHATSAPP_NUMBER}</span>
-        <span className="xs:hidden">الواتساب</span>
-      </a>
+      {/* Dynamic Ambient Background Elements - Minimal & Luxury */}
+      <div className="absolute top-[-100px] left-1/4 w-[500px] h-[500px] bg-cyan-500/[0.03] rounded-full blur-[140px] pointer-events-none" />
+      <div className="absolute top-[400px] right-10 w-[400px] h-[400px] bg-sky-500/[0.03] rounded-full blur-[120px] pointer-events-none" />
 
       {/* ========================================================================= */}
-      {/* SECTION 1: STUDENT HERO TOP HEADER (المنصة المخصصة للطلاب) */}
+      {/* SECTION 1: OFFICIAL INSTITUTIONAL HERO HEADER */}
       {/* ========================================================================= */}
-      <div className="relative pt-6 pb-4 overflow-hidden">
-        {/* Ambient glow backgrounds */}
-        <div className="absolute top-0 right-1/4 w-96 h-96 bg-cyan-500/10 rounded-full blur-3xl pointer-events-none" />
-        <div className="absolute top-10 left-1/4 w-96 h-96 bg-sky-500/10 rounded-full blur-3xl pointer-events-none" />
-
-        <div className="relative z-10 flex flex-col items-center text-center space-y-6 max-w-4xl mx-auto">
+      <div className="relative pt-12 pb-6 overflow-hidden">
+        <div className="relative z-10 flex flex-col items-center text-center space-y-10 max-w-5xl mx-auto">
           
-          {/* Top Badge */}
+          {/* Institutional Badge with Crest Aesthetic */}
           <div
-            className={`inline-flex items-center gap-2.5 px-4 py-2 rounded-full border text-xs font-bold shadow-xl backdrop-blur-md transition-colors ${
+            className={`inline-flex items-center gap-3 px-5 py-2.5 rounded-full border text-[11px] font-black tracking-wide shadow-sm backdrop-blur-md transition-all duration-300 ${
               isLight
-                ? 'bg-white/90 border-slate-200 text-cyan-800 shadow-slate-200/50'
-                : 'bg-slate-900/90 border-slate-800 text-cyan-300 shadow-cyan-950/20'
+                ? 'bg-slate-100/90 border-slate-200 text-slate-800'
+                : 'bg-slate-900/90 border-slate-800 text-slate-200'
             }`}
           >
-            <span className="flex h-2 w-2 relative">
-              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
-              <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
-            </span>
-            <span>البوابة الرقمية المعتمدة للطلاب • Smart Education Authority</span>
+            <Building className="w-3.5 h-3.5 text-cyan-500" />
+            <span className="w-1.5 h-1.5 rounded-full bg-cyan-500 animate-pulse" />
+            <span>البوابة الرسمية المعتمدة لمنظومة المدارس والمنصات الذكية • SEA Education Group</span>
           </div>
 
-          {/* Main Title for Students */}
-          <h1
-            className={`text-3xl sm:text-5xl lg:text-6xl font-black tracking-tight leading-[1.25] transition-colors ${
-              isLight ? 'text-slate-900' : 'text-white'
-            }`}
-          >
-            تعلم واحتراف المواد الدراسية{' '}
-            <span className="text-transparent bg-clip-text bg-gradient-to-r from-cyan-500 via-sky-500 to-blue-500">
-              مع صفوة ونخبة المعلمين
-            </span>
-          </h1>
+          {/* Master Display Headline - Structured, Highly Professional */}
+          <div className="space-y-4">
+            <h1
+              className={`text-4xl sm:text-6xl lg:text-7xl font-black tracking-tight leading-[1.2] transition-colors ${
+                isLight ? 'text-slate-900' : 'text-white'
+              }`}
+            >
+              المنظومة الرقمية السيادية{' '}
+              <span className="text-transparent bg-clip-text bg-gradient-to-r from-sky-500 via-cyan-400 to-blue-600 font-extrabold block sm:inline">
+                لإدارة المحتوى والتعليم التفاعلي
+              </span>
+            </h1>
+            <div className="w-32 h-1 bg-gradient-to-r from-cyan-500 to-sky-500 mx-auto rounded-full" />
+          </div>
 
-          {/* Subtitle */}
           <p
-            className={`text-base sm:text-lg max-w-3xl leading-relaxed transition-colors ${
+            className={`text-base sm:text-xl max-w-3xl leading-relaxed font-medium transition-colors ${
               isLight ? 'text-slate-600' : 'text-slate-300'
             }`}
           >
-            شاهد دروسك بجودة عالية مع حفظ موضع التوقف، حل الامتحانات والواجبات المرفقة بأوراق المفاهيم وقوانين الشرح، واحصل على تصحيح آلي وملاحظات فورية لتطوير مستواك الدراسي.
+            بنية تحتية برمجية متكاملة ومحميّة تهدف إلى تأسيس معايير جديدة للتعلم الرقمي المؤسسي، مع دمج أدوات الحماية العتادية ضد القرصنة، وبنوك الأسئلة المقارنة، والتقارير الفورية لأولياء الأمور.
           </p>
 
-          {/* Quick Real System Metrics Bar */}
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 w-full max-w-3xl pt-2">
-            <div className={`p-3.5 rounded-2xl border text-center ${isLight ? 'bg-white border-slate-200 shadow-sm' : 'bg-slate-900/90 border-slate-800'}`}>
-              <div className="text-lg sm:text-2xl font-black text-cyan-500">{courses.length} كورس</div>
-              <div className="text-[11px] font-bold text-slate-500 dark:text-slate-400">متاح الآن بالمنصة</div>
-            </div>
-            <div className={`p-3.5 rounded-2xl border text-center ${isLight ? 'bg-white border-slate-200 shadow-sm' : 'bg-slate-900/90 border-slate-800'}`}>
-              <div className="text-lg sm:text-2xl font-black text-emerald-500">{platforms.length} منصات</div>
-              <div className="text-[11px] font-bold text-slate-500 dark:text-slate-400">معلمين معتمدين</div>
-            </div>
-            <div className={`p-3.5 rounded-2xl border text-center ${isLight ? 'bg-white border-slate-200 shadow-sm' : 'bg-slate-900/90 border-slate-800'}`}>
-              <div className="text-lg sm:text-2xl font-black text-amber-500">
-                مؤمنة 100%
-              </div>
-              <div className="text-[11px] font-bold text-slate-500 dark:text-slate-400">بيئة دراسية متكاملة</div>
-            </div>
-            <div className={`p-3.5 rounded-2xl border text-center ${isLight ? 'bg-white border-slate-200 shadow-sm' : 'bg-slate-900/90 border-slate-800'}`}>
-              <div className="text-lg sm:text-2xl font-black text-sky-500">100%</div>
-              <div className="text-[11px] font-bold text-slate-500 dark:text-slate-400">تفاعل وتصحيح آلي</div>
-            </div>
-          </div>
-
-          {/* Action CTAs for Students */}
-          <div className="flex flex-col sm:flex-row flex-wrap items-center justify-center gap-3 sm:gap-4 pt-4 w-full max-w-2xl mx-auto">
+          {/* Institutional Quick Action Center */}
+          <div className="flex flex-col sm:flex-row flex-wrap items-center justify-center gap-4 pt-4 w-full max-w-2xl mx-auto">
             {primaryPlatform ? (
               <button
                 id="btn-hero-primary-platform"
@@ -220,36 +230,26 @@ export const HomeHero: React.FC = () => {
                   setSelectedPlatformId(primaryPlatform.id);
                   setCurrentView('platform_detail');
                 }}
-                className="w-full sm:w-auto justify-center px-6 sm:px-8 py-3.5 sm:py-4 rounded-2xl font-black text-xs sm:text-sm bg-gradient-to-r from-sky-400 via-cyan-400 to-blue-500 hover:from-sky-300 hover:to-blue-400 text-slate-950 shadow-xl shadow-cyan-950/40 transition-all duration-300 flex items-center gap-2.5 cursor-pointer hover:scale-[1.02]"
+                className="w-full sm:w-auto px-8 py-4.5 rounded-xl font-black text-xs sm:text-sm bg-gradient-to-r from-slate-900 to-slate-950 dark:from-sky-400 dark:to-cyan-400 hover:opacity-90 text-white dark:text-slate-950 shadow-lg shadow-cyan-500/10 transition-all duration-300 flex items-center justify-center gap-3 cursor-pointer hover:scale-[1.01]"
               >
-                <GraduationCap className="w-4 sm:w-5 h-4 sm:h-5 text-slate-950 stroke-[2.5]" />
-                <span>دخول منصة {primaryPlatform.teacherName} ({primaryPlatform.subject})</span>
-                <ArrowLeft className="w-4 h-4" />
+                <GraduationCap className="w-5 h-5 text-cyan-400 dark:text-slate-950 stroke-[2.5]" />
+                <span>دخول منصة مادة {primaryPlatform.subject} ({primaryPlatform.teacherName})</span>
+                <ArrowLeft className="w-4 h-4 text-cyan-400 dark:text-slate-950" />
               </button>
             ) : null}
-
-            <a
-              href={WHATSAPP_LINK_STUDENT}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="w-full sm:w-auto justify-center px-6 sm:px-7 py-3.5 sm:py-4 rounded-2xl font-black text-xs sm:text-sm bg-emerald-500 hover:bg-emerald-600 text-white shadow-xl shadow-emerald-950/30 transition-all duration-300 flex items-center gap-2 cursor-pointer"
-            >
-              <MessageCircle className="w-4 sm:w-5 h-4 sm:h-5 fill-white" />
-              <span>استفسار الطلاب: {WHATSAPP_NUMBER}</span>
-            </a>
 
             {!currentUser && (
               <button
                 id="btn-hero-login"
                 onClick={() => setIsAuthModalOpen(true)}
-                className={`w-full sm:w-auto justify-center px-5 sm:px-6 py-3.5 sm:py-4 rounded-2xl font-bold text-xs border shadow-lg transition-all duration-300 flex items-center gap-2 cursor-pointer ${
+                className={`w-full sm:w-auto px-7 py-4.5 rounded-xl font-black text-xs sm:text-sm border shadow-sm transition-all duration-300 flex items-center justify-center gap-2 cursor-pointer ${
                   isLight
-                    ? 'bg-sky-50 hover:bg-sky-100 text-sky-900 border-sky-200'
-                    : 'bg-sky-950/40 hover:bg-sky-900/40 text-sky-300 border-sky-800/40'
+                    ? 'bg-white hover:bg-slate-50 text-slate-800 border-slate-200'
+                    : 'bg-slate-900/60 hover:bg-slate-900 text-slate-200 border-slate-800'
                 }`}
               >
-                <Sparkles className="w-4 h-4 text-sky-500" />
-                <span>تسجيل الدخول / حساب طالب جديد</span>
+                <Sparkles className="w-4 h-4 text-cyan-500" />
+                <span>إنشاء حساب أكاديمي / تسجيل الدخول</span>
               </button>
             )}
           </div>
@@ -258,10 +258,253 @@ export const HomeHero: React.FC = () => {
       </div>
 
       {/* ========================================================================= */}
-      {/* SECTION 2: STUDENT COURSES DIRECTORY & GRADE FILTERS */}
+      {/* SECTION 2: STATELY UNDER DEVELOPMENT ROADMAP & DESIGNER NOUR EL-SAEED */}
       {/* ========================================================================= */}
-      <div className="space-y-8">
-        <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4 border-b pb-6 border-slate-200 dark:border-slate-800">
+      <div className="relative">
+        <div
+          className={`p-8 sm:p-12 rounded-3xl border relative overflow-hidden transition-all duration-500 ${
+            isLight
+              ? 'bg-slate-50/80 border-slate-200/80 shadow-md'
+              : 'bg-slate-900/30 border-slate-800/80 shadow-2xl'
+          }`}
+        >
+          {/* Top-right subtle blueprint motif */}
+          <div className="absolute top-0 right-0 w-32 h-32 bg-cyan-500/[0.02] border-b border-l border-dashed border-cyan-500/10 rounded-bl-3xl pointer-events-none" />
+          
+          <div className="grid grid-cols-1 lg:grid-cols-12 gap-10 items-center relative z-10">
+            <div className="lg:col-span-8 space-y-6">
+              
+              <div className="inline-flex items-center gap-2.5 px-3.5 py-1.5 rounded-lg bg-cyan-500/10 text-cyan-600 dark:text-cyan-400 text-xs font-black border border-cyan-500/20">
+                <Calendar className="w-4 h-4" />
+                <span>خارطة طريق التطوير التقني والتربوي</span>
+              </div>
+              
+              <div className="space-y-3">
+                <h2 className={`text-2xl sm:text-3xl lg:text-4xl font-black leading-tight ${isLight ? 'text-slate-900' : 'text-white'}`}>
+                  بيان رسمي: <span className="text-cyan-500 font-extrabold">المنظومة في مرحلة التطوير والتحسين المستمر</span>
+                </h2>
+                <div className="w-20 h-1 bg-cyan-500 rounded" />
+              </div>
+              
+              <p className={`text-sm sm:text-base leading-relaxed ${isLight ? 'text-slate-700' : 'text-slate-300'}`}>
+                بخطى ثابتة ورؤية طموحة، نعلن أن المنظومة قيد البناء والاختبار الفني اليومي لضمان ثباتها وكفاءتها القصوى. يتم تنفيذ وتوجيه الأعمال البرمجية والتصميمية والهندسة العتادية يومياً بواسطة المطور والمصمم الرئيسي للمشروع:
+                <span className="font-extrabold text-cyan-500 dark:text-cyan-400 mx-1.5">Nour El-Saeed (Nour Mohamed El-Saeed)</span> 
+                تحت إشراف مباشر وتنسيق كامل مع كوكبة متميزة من الخبراء والموجهين التربويين لضمان دقة وملائمة المنهج والمحتوى العلمي للطلاب.
+              </p>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-2">
+                <div className={`p-4 rounded-xl border ${isLight ? 'bg-white border-slate-200' : 'bg-slate-900 border-slate-800'}`}>
+                  <div className="text-xs text-slate-400 mb-1">📅 الإطلاق والتدشين الرسمي المجدول</div>
+                  <div className="text-sm font-black text-cyan-500">يوليو 2027 م (إن شاء الله)</div>
+                </div>
+                <div className={`p-4 rounded-xl border ${isLight ? 'bg-white border-slate-200' : 'bg-slate-900 border-slate-800'}`}>
+                  <div className="text-xs text-slate-400 mb-1">💻 كبير مطوري ومصممي المنظومة</div>
+                  <div className="text-sm font-black text-slate-800 dark:text-slate-100 font-mono">Nour Mohamed El-Saeed</div>
+                </div>
+              </div>
+            </div>
+
+            {/* Verification & Trust Side Column */}
+            <div className="lg:col-span-4 flex flex-col justify-center">
+              <div className={`p-6.5 rounded-2xl border text-right space-y-4 ${isLight ? 'bg-white border-slate-200 shadow-sm' : 'bg-slate-900/90 border-slate-800'}`}>
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-xl bg-cyan-500/10 text-cyan-500 flex items-center justify-center">
+                    <Shield className="w-5 h-5" />
+                  </div>
+                  <div>
+                    <h4 className={`text-xs font-black ${isLight ? 'text-slate-900' : 'text-white'}`}>تأمين مؤسسي متكامل</h4>
+                    <p className="text-[10px] text-slate-400">بنية برمجية معتمدة</p>
+                  </div>
+                </div>
+                <ul className="space-y-2 text-[11px] text-slate-500 dark:text-slate-400 font-semibold">
+                  <li className="flex items-center gap-2">
+                    <span className="w-1.5 h-1.5 rounded-full bg-cyan-500" />
+                    <span>مزامنة سحابية فائقة السرعة للدرجات.</span>
+                  </li>
+                  <li className="flex items-center gap-2">
+                    <span className="w-1.5 h-1.5 rounded-full bg-cyan-500" />
+                    <span>تأمين المحاضرات عتادياً ضد التسريب.</span>
+                  </li>
+                  <li className="flex items-center gap-2">
+                    <span className="w-1.5 h-1.5 rounded-full bg-cyan-500" />
+                    <span>تحديثات برمجية تلقائية دون تشتيت الطالب.</span>
+                  </li>
+                </ul>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* ========================================================================= */}
+      {/* SECTION 3: THE 6 OFFICIALLY ACCREDITED SUBJECTS */}
+      {/* ========================================================================= */}
+      <div className="space-y-12">
+        <div className="text-center space-y-3.5 max-w-3xl mx-auto">
+          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-md bg-slate-100 dark:bg-slate-800 text-slate-800 dark:text-slate-200 text-xs font-black border border-slate-200 dark:border-slate-700">
+            <Layers className="w-3.5 h-3.5" />
+            <span>المقررات الأكاديمية الستة المعتمدة</span>
+          </div>
+          <h2 className={`text-2xl sm:text-4xl font-black tracking-tight ${isLight ? 'text-slate-900' : 'text-white'}`}>
+            خارطة تخصصات المنظومة التعليمية
+          </h2>
+          <p className={`text-sm leading-relaxed ${isLight ? 'text-slate-600' : 'text-slate-400'}`}>
+            نستعرض المقررات الست المخطط تفعيلها بالمنصة. مع العلم أن تخصص اللغة الإنجليزية هو المكتمل فنياً ويخضع للتطوير الفعلي حالياً.
+          </p>
+        </div>
+
+        {/* 6 Subjects - Institutional Mathematical Cards */}
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6.5">
+          {subjectsData.map((sub) => {
+            const isActive = sub.status === 'active';
+            return (
+              <div
+                key={sub.id}
+                className={`p-7 rounded-2xl border transition-all duration-300 relative overflow-hidden flex flex-col justify-between group ${
+                  isActive
+                    ? isLight
+                      ? 'bg-white border-cyan-400 shadow-lg shadow-cyan-50/50'
+                      : 'bg-slate-900/90 border-cyan-500/30 shadow-2xl'
+                    : isLight
+                    ? 'bg-slate-50 border-slate-200/80 opacity-90'
+                    : 'bg-slate-950/40 border-slate-800/60 opacity-80'
+                }`}
+              >
+                {/* Thin colored line indicator at the top for neatness */}
+                <div className={`absolute top-0 left-0 right-0 h-[3px] bg-gradient-to-r ${sub.color}`} />
+
+                <div className="space-y-5 pt-2">
+                  <div className="flex items-center justify-between">
+                    <span
+                      className={`px-2.5 py-1 rounded text-[10px] font-black tracking-wide uppercase ${
+                        isActive
+                          ? 'bg-cyan-500 text-slate-950 shadow-sm'
+                          : isLight
+                          ? 'bg-slate-100 text-slate-500'
+                          : 'bg-slate-800 text-slate-400'
+                      }`}
+                    >
+                      {sub.tag}
+                    </span>
+                    <span className="font-mono text-[10px] font-black text-slate-400">
+                      {sub.nameEn}
+                    </span>
+                  </div>
+
+                  <div className="space-y-2">
+                    <h3 className={`text-lg font-black ${isLight ? 'text-slate-900' : 'text-white'}`}>
+                      {sub.name}
+                    </h3>
+                    <p className={`text-xs leading-relaxed ${isLight ? 'text-slate-600' : 'text-slate-400'}`}>
+                      {sub.desc}
+                    </p>
+                  </div>
+                </div>
+
+                <div className="pt-5 border-t border-dashed border-slate-200 dark:border-slate-800 mt-6 flex items-center justify-between">
+                  <span className="text-[10px] font-bold text-slate-400">منظومة SEA الرقمية</span>
+                  {isActive && primaryPlatform ? (
+                    <button
+                      onClick={() => {
+                        setSelectedPlatformId(primaryPlatform.id);
+                        setCurrentView('platform_detail');
+                      }}
+                      className="px-4.5 py-2 rounded-lg text-[11px] font-black bg-cyan-500 text-slate-950 flex items-center gap-1.5 hover:bg-cyan-400 transition-colors cursor-pointer shadow-sm"
+                    >
+                      <span>تصفح المنصة النشطة</span>
+                      <ChevronRight className="w-3.5 h-3.5" />
+                    </button>
+                  ) : (
+                    <span className="text-[11px] font-black text-amber-500 dark:text-amber-400">تحت التجهيز</span>
+                  )}
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+
+      {/* ========================================================================= */}
+      {/* SECTION 4: INSTITUTIONAL MULTI-TENANCY EXPLANATION */}
+      {/* ========================================================================= */}
+      <div className="relative">
+        <div
+          className={`p-8 sm:p-12 rounded-3xl border relative overflow-hidden transition-all duration-500 ${
+            isLight
+              ? 'bg-slate-50/70 border-slate-200/80'
+              : 'bg-slate-900/20 border-slate-800/80'
+          }`}
+        >
+          {/* Blueprint background grid effect */}
+          <div className="absolute inset-0 bg-[linear-gradient(to_right,#8080800a_1px,transparent_1px),linear-gradient(to_bottom,#8080800a_1px,transparent_1px)] bg-[size:14px_24px] pointer-events-none" />
+
+          <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-center relative z-10">
+            <div className="lg:col-span-8 space-y-6">
+              
+              <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-lg bg-cyan-500/10 text-cyan-600 dark:text-cyan-400 text-xs font-black border border-cyan-500/20">
+                <Cpu className="w-4 h-4" />
+                <span>بروتوكول البنية المتعددة للمنصات الأكاديمية</span>
+              </div>
+
+              <div className="space-y-3">
+                <h3 className={`text-2xl sm:text-3xl font-black ${isLight ? 'text-slate-900' : 'text-white'}`}>
+                  متاح إنشاء أكثر من منصة مستقلة لنفس المادة الدراسية
+                </h3>
+                <div className="w-20 h-1 bg-cyan-500" />
+              </div>
+
+              <p className={`text-sm sm:text-base leading-relaxed ${isLight ? 'text-slate-600' : 'text-slate-300'}`}>
+                تتميز بنية منظومة <span className="font-bold">SEA</span> الرقمية بالمرونة والقدرة على التعددية اللامركزية الكاملة.
+                <span className="font-bold text-slate-800 dark:text-white mx-1">
+                  إذا تم تأسيس منصة لغة إنجليزية لمعلم معين، فإنه يحق لأي معلم آخر تقديم طلب لتأسيس منصة خاصة ومستقلة به بالكامل لنفس المقرر، لتظهر جنباً إلى جنب ضمن قائمة معلمي ومدرسي المادة، وينطبق هذا المفهوم على بقية المواد بالمنظومة.
+                </span>
+              </p>
+
+              <div className={`p-5 rounded-xl border text-xs sm:text-sm leading-relaxed ${isLight ? 'bg-white border-slate-200 text-slate-600' : 'bg-slate-900 border-slate-800 text-slate-300'}`}>
+                <span className="font-extrabold text-cyan-500 block mb-1">كيف تدعم المنصة التعددية؟</span>
+                تعتمد المنصة على بنية تتيح لكل معلم الحصول على لوحة تحكم مستقلة، وقاعدة بيانات طلاب، وسجلات وبنوك أسئلة وفيديوهات محمية منفصلة، مع واجهة مرنة موحدة للطلاب لاختيار المعلم المفضل.
+              </div>
+            </div>
+
+            <div className="lg:col-span-4 flex items-center justify-center">
+              <div className={`p-6 rounded-2xl border w-full max-w-sm space-y-4 ${isLight ? 'bg-white border-slate-200 shadow-sm' : 'bg-slate-900 border-slate-800'}`}>
+                <div className="text-xs font-bold text-slate-400">سير العمل التعددي للمنصات:</div>
+                
+                <div className="space-y-3">
+                  <div className="flex items-start gap-3">
+                    <div className="w-6 h-6 rounded-full bg-cyan-500/10 text-cyan-500 flex items-center justify-center font-bold text-xs shrink-0">1</div>
+                    <div className="text-xs">
+                      <div className="font-bold text-slate-800 dark:text-white">طلب ترخيص المعلم</div>
+                      <p className="text-slate-400 text-[10px]">تقديم طلب التأسيس وتخصيص المادة.</p>
+                    </div>
+                  </div>
+                  <div className="flex items-start gap-3">
+                    <div className="w-6 h-6 rounded-full bg-cyan-500/10 text-cyan-500 flex items-center justify-center font-bold text-xs shrink-0">2</div>
+                    <div className="text-xs">
+                      <div className="font-bold text-slate-800 dark:text-white">بناء الخادم المنفصل</div>
+                      <p className="text-slate-400 text-[10px]">توليد لوحة تحكم وقاعدة بيانات مستقلة للمعلم.</p>
+                    </div>
+                  </div>
+                  <div className="flex items-start gap-3">
+                    <div className="w-6 h-6 rounded-full bg-cyan-500/10 text-cyan-500 flex items-center justify-center font-bold text-xs shrink-0">3</div>
+                    <div className="text-xs">
+                      <div className="font-bold text-slate-800 dark:text-white">الإدراج بالقائمة العامة</div>
+                      <p className="text-slate-400 text-[10px]">ظهور منصة المعلم للطلاب فوراً وبشكل مخصص.</p>
+                    </div>
+                  </div>
+                </div>
+
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* ========================================================================= */}
+      {/* SECTION 5: ACCREDITED COURSES AND LECTURES DIRECTORY */}
+      {/* ========================================================================= */}
+      <div className="space-y-10">
+        <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-6 border-b pb-6 border-slate-200 dark:border-slate-800">
           <div>
             <div className="flex items-center gap-2 text-cyan-500 font-bold text-xs mb-1">
               <BookOpen className="w-4 h-4" />
@@ -270,87 +513,51 @@ export const HomeHero: React.FC = () => {
             <h2 className={`text-2xl sm:text-3xl font-black ${isLight ? 'text-slate-900' : 'text-white'}`}>
               اختر صفك الدراسي وابدأ المشاهدة والتعلم
             </h2>
-            <p className={`text-xs sm:text-sm mt-1 ${isLight ? 'text-slate-500' : 'text-slate-400'}`}>
-              جميع الكورسات تتضمن محاضرات فيديو، ملخصات PDF، امتحانات بأسئلة تفاعلية، وتكليفات للحل.
-            </p>
           </div>
 
-          {/* Grade Level Selector Tabs */}
-          <div className="flex flex-wrap items-center gap-2 w-full md:w-auto">
-            <button
-              onClick={() => setSelectedGradeFilter('all')}
-              className={`px-3.5 py-2 rounded-xl text-xs font-black transition-all cursor-pointer ${
-                selectedGradeFilter === 'all'
-                  ? 'bg-cyan-500 text-slate-950 shadow-md'
-                  : isLight
-                  ? 'bg-slate-100 hover:bg-slate-200 text-slate-700'
-                  : 'bg-slate-800 hover:bg-slate-700 text-slate-300'
-              }`}
-            >
-              كافة المراحل
-            </button>
-            <button
-              onClick={() => setSelectedGradeFilter('الصف الثالث الثانوي')}
-              className={`px-3.5 py-2 rounded-xl text-xs font-black transition-all cursor-pointer ${
-                selectedGradeFilter === 'الصف الثالث الثانوي'
-                  ? 'bg-cyan-500 text-slate-950 shadow-md'
-                  : isLight
-                  ? 'bg-slate-100 hover:bg-slate-200 text-slate-700'
-                  : 'bg-slate-800 hover:bg-slate-700 text-slate-300'
-              }`}
-            >
-              الصف الثالث الثانوي
-            </button>
-            <button
-              onClick={() => setSelectedGradeFilter('الصف الثاني الثانوي')}
-              className={`px-3.5 py-2 rounded-xl text-xs font-black transition-all cursor-pointer ${
-                selectedGradeFilter === 'الصف الثاني الثانوي'
-                  ? 'bg-cyan-500 text-slate-950 shadow-md'
-                  : isLight
-                  ? 'bg-slate-100 hover:bg-slate-200 text-slate-700'
-                  : 'bg-slate-800 hover:bg-slate-700 text-slate-300'
-              }`}
-            >
-              الصف الثاني الثانوي
-            </button>
-            <button
-              onClick={() => setSelectedGradeFilter('الصف الأول الثانوي')}
-              className={`px-3.5 py-2 rounded-xl text-xs font-black transition-all cursor-pointer ${
-                selectedGradeFilter === 'الصف الأول الثانوي'
-                  ? 'bg-cyan-500 text-slate-950 shadow-md'
-                  : isLight
-                  ? 'bg-slate-100 hover:bg-slate-200 text-slate-700'
-                  : 'bg-slate-800 hover:bg-slate-700 text-slate-300'
-              }`}
-            >
-              الصف الأول الثانوي
-            </button>
+          {/* Grade Selector Tabs */}
+          <div className="flex flex-wrap items-center gap-1.5 w-full md:w-auto">
+            {['all', 'الصف الثالث الثانوي', 'الصف الثاني الثانوي', 'الصف الأول الثانوي'].map((grade) => (
+              <button
+                key={grade}
+                onClick={() => setSelectedGradeFilter(grade)}
+                className={`px-4 py-2 rounded-lg text-xs font-black transition-all cursor-pointer ${
+                  selectedGradeFilter === grade
+                    ? 'bg-cyan-500 text-slate-950 shadow-sm'
+                    : isLight
+                    ? 'bg-slate-100 hover:bg-slate-200 text-slate-700'
+                    : 'bg-slate-800 hover:bg-slate-700 text-slate-300'
+                }`}
+              >
+                {grade === 'all' ? 'كافة المراحل الدراسية' : grade}
+              </button>
+            ))}
           </div>
         </div>
 
-        {/* Search Bar */}
+        {/* Search Bar - Modern & Responsive */}
         <div className="relative">
           <input
             type="text"
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            placeholder="ابحث باسم الكورس، أستاذ المادة، أو عنوان الدرس..."
-            className={`w-full pr-11 pl-4 py-3.5 rounded-2xl border text-xs sm:text-sm focus:border-cyan-500 focus:outline-none shadow-sm transition-all ${
+            placeholder="البحث السريع في بنية المقررات الدراسية..."
+            className={`w-full pr-11 pl-4 py-4 rounded-xl border text-xs sm:text-sm focus:border-cyan-500 focus:outline-none transition-all ${
               isLight ? 'bg-white border-slate-200 text-slate-900' : 'bg-slate-900 border-slate-800 text-white'
             }`}
           />
-          <Search className="w-5 h-5 text-slate-400 absolute right-3.5 top-3.5" />
+          <Search className="w-5 h-5 text-slate-400 absolute right-3.5 top-4.5" />
         </div>
 
         {/* Courses Cards Grid */}
         {featuredCourses.length === 0 ? (
-          <div className={`p-10 rounded-3xl border text-center ${isLight ? 'bg-slate-50 border-slate-200 text-slate-500' : 'bg-slate-900 border-slate-800 text-slate-400'}`}>
+          <div className={`p-12 rounded-2xl border text-center ${isLight ? 'bg-slate-50 border-slate-200 text-slate-500' : 'bg-slate-900 border-slate-800 text-slate-400'}`}>
             <BookOpen className="w-12 h-12 mx-auto mb-3 opacity-40 text-cyan-500" />
             <p className="font-black text-sm">لا توجد كورسات مطابقة لخيارات البحث حالياً</p>
             <p className="text-xs text-slate-400 mt-1">جرّب إلغاء تصفية المرحلة الدراسية أو كتابة كلمة بحث مختلفة</p>
           </div>
         ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6.5">
             {featuredCourses.map(({ course, platform }) => {
               const isBestSeller = (course.enrolledCount || 0) > 0;
               return (
@@ -361,14 +568,14 @@ export const HomeHero: React.FC = () => {
                     setSelectedCourseId(course.id);
                     setCurrentView('course_detail');
                   }}
-                  className={`rounded-3xl border shadow-xl overflow-hidden flex flex-col justify-between cursor-pointer transition-all duration-300 group hover:-translate-y-1.5 ${
+                  className={`rounded-2xl border overflow-hidden flex flex-col justify-between cursor-pointer transition-all duration-300 group hover:-translate-y-1 ${
                     isLight
-                      ? 'bg-white border-slate-200 hover:border-cyan-400 shadow-slate-200/60'
-                      : 'bg-slate-900 border-slate-800 hover:border-cyan-500/50'
+                      ? 'bg-white border-slate-200 hover:border-cyan-400 shadow-md'
+                      : 'bg-slate-900 border-slate-800 hover:border-cyan-500/40'
                   }`}
                 >
                   <div>
-                    {/* Thumbnail & Badges */}
+                    {/* Thumbnail */}
                     <div className="relative h-52 overflow-hidden bg-slate-950">
                       <img
                         src={course.thumbnail || DEFAULT_COURSE_COVER}
@@ -377,55 +584,47 @@ export const HomeHero: React.FC = () => {
                         onError={(e) => {
                           (e.currentTarget as HTMLImageElement).src = DEFAULT_COURSE_COVER;
                         }}
-                        className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+                        className="w-full h-full object-cover group-hover:scale-[1.02] transition-transform duration-500"
                       />
-                      <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/30 to-transparent" />
+                      <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/40 to-transparent" />
                       
                       {/* Price Badge */}
-                      <div className="absolute top-3 right-3 px-3 py-1 rounded-xl text-xs font-black bg-sky-400 text-slate-950 shadow-md">
-                        {course.isFree ? 'مجاني 100%' : `${course.price} ج.م`}
+                      <div className="absolute top-3 right-3 px-3 py-1 rounded text-xs font-black bg-cyan-500 text-slate-950 shadow-sm">
+                        {course.isFree ? 'مجاني بالكامل' : `${course.price} ج.م`}
                       </div>
 
-                      {/* Best Seller / Flagship Badge */}
                       <div className="absolute top-3 left-3">
-                        {isBestSeller ? (
-                          <span className="px-2.5 py-1 rounded-xl text-[11px] font-black bg-amber-400 text-slate-950 shadow-md flex items-center gap-1">
-                            <Sparkles className="w-3 h-3 fill-slate-950" />
-                            <span>كورس متميز وموصى به ⭐</span>
-                          </span>
-                        ) : (
-                          <span className="px-2.5 py-1 rounded-xl text-[11px] font-black bg-cyan-500 text-slate-950 shadow-md flex items-center gap-1">
-                            <Sparkles className="w-3 h-3 fill-slate-950" />
-                            <span>كورس المنصة الرئيسي</span>
-                          </span>
-                        )}
+                        <span className="px-2.5 py-1 rounded text-[10px] font-black bg-slate-900/90 text-white shadow-md flex items-center gap-1 border border-slate-800">
+                          <Star className="w-3 h-3 fill-amber-400 text-amber-400" />
+                          <span>المقرر المعتمد</span>
+                        </span>
                       </div>
 
-                      {/* Teacher & Grade Overlay */}
+                      {/* Teacher Overlay */}
                       <div className="absolute bottom-3 right-3 left-3 flex items-center justify-between text-xs font-bold text-white/95">
                         <div className="flex items-center gap-2">
                           <img
                             src={platform.teacherAvatar}
                             alt={platform.teacherName}
                             referrerPolicy="no-referrer"
-                            className="w-7 h-7 rounded-full object-cover border border-white/80"
+                            className="w-7 h-7 rounded-full object-cover border border-white/50"
                             onError={(e) => {
                               (e.currentTarget as HTMLImageElement).style.display = 'none';
                             }}
                           />
-                          <span className="truncate max-w-[130px]">{platform.teacherName}</span>
+                          <span className="truncate max-w-[140px] text-[11px] font-black">{platform.teacherName}</span>
                         </div>
-                        <span className="px-2.5 py-0.5 rounded-lg bg-black/60 backdrop-blur-md border border-white/20 text-[11px]">
+                        <span className="px-2 py-0.5 rounded bg-black/60 backdrop-blur-md border border-white/10 text-[10px]">
                           {course.gradeLevel}
                         </span>
                       </div>
                     </div>
 
                     {/* Content Body */}
-                    <div className="p-5 space-y-2.5">
-                      <div className="flex items-center justify-between text-xs font-bold text-sky-600 dark:text-sky-400">
+                    <div className="p-5 space-y-3">
+                      <div className="flex items-center justify-between text-[10px] font-black text-cyan-500">
                         <span>مادة {platform.subject}</span>
-                        <span className="text-slate-400 text-[11px]">
+                        <span className="text-slate-400">
                           {course.curriculumType === 'azhar' ? 'أزهر' : course.curriculumType === 'international' ? 'لغات' : 'ثانوية عامة'}
                         </span>
                       </div>
@@ -434,7 +633,7 @@ export const HomeHero: React.FC = () => {
                         {course.title}
                       </h3>
                       {course.subtitle && (
-                        <p className="text-xs text-sky-600 dark:text-sky-400 line-clamp-1 font-semibold">
+                        <p className="text-xs text-cyan-500 line-clamp-1 font-semibold">
                           {course.subtitle}
                         </p>
                       )}
@@ -445,13 +644,13 @@ export const HomeHero: React.FC = () => {
                   </div>
 
                   {/* Card Footer */}
-                  <div className={`p-5 pt-3 border-t flex items-center justify-between text-xs ${isLight ? 'border-slate-100 text-slate-500' : 'border-slate-800 text-slate-400'}`}>
+                  <div className={`p-5 pt-3.5 border-t flex items-center justify-between text-xs ${isLight ? 'border-slate-100 text-slate-500' : 'border-slate-800 text-slate-400'}`}>
                     <span className="flex items-center gap-1 font-semibold">
-                      <Clock className="w-3.5 h-3.5 text-sky-500" />
+                      <Clock className="w-3.5 h-3.5 text-cyan-500" />
                       <span>{course.totalDurationMinutes || 180} دقيقة</span>
                     </span>
-                    <span className="text-cyan-600 dark:text-cyan-400 font-black flex items-center gap-1 group-hover:translate-x-[-4px] transition-transform">
-                      <span>دخول الكورس والتسجيل</span>
+                    <span className="text-cyan-500 font-black flex items-center gap-1 group-hover:translate-x-[-2px] transition-transform">
+                      <span>الولوج للمادة التعليمية</span>
                       <ChevronRight className="w-4 h-4" />
                     </span>
                   </div>
@@ -463,312 +662,144 @@ export const HomeHero: React.FC = () => {
       </div>
 
       {/* ========================================================================= */}
-      {/* SECTION 3: FEATURED TEACHER PLATFORM SPOTLIGHT */}
+      {/* SECTION 6: INSTITUTIONAL INQUIRIES CENTER (للاستفسارات فقط - رقم 011) */}
       {/* ========================================================================= */}
-      {primaryPlatform && (
+      <div className="relative">
         <div
-          className={`p-8 sm:p-10 rounded-3xl border shadow-2xl relative overflow-hidden transition-all ${
+          className={`p-10 sm:p-14 rounded-3xl text-center relative overflow-hidden transition-all duration-500 ${
             isLight
-              ? 'bg-gradient-to-br from-sky-50 via-white to-cyan-50 border-sky-200 shadow-sky-100/50'
-              : 'bg-gradient-to-br from-sky-950/80 via-slate-900 to-slate-950 border-sky-800/50 shadow-cyan-950/30'
+              ? 'bg-slate-900 text-white border-slate-800'
+              : 'bg-slate-950 text-white border-slate-800'
           }`}
         >
-          <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-center">
-            
-            {/* Left/Main Column: Platform Overview */}
-            <div className="lg:col-span-7 space-y-6">
-              <div className="flex items-center gap-3">
-                <span className="px-3.5 py-1 rounded-full text-xs font-black bg-sky-500 text-slate-950 flex items-center gap-1.5 shadow-md">
-                  <Star className="w-3.5 h-3.5 fill-slate-950 text-slate-950" />
-                  المنصة التعليمية المعتمدة
-                </span>
-                <span className="text-xs font-bold text-sky-600 dark:text-sky-400">
-                  مادة {primaryPlatform.subject}
-                </span>
-              </div>
+          {/* Subtle architectural details */}
+          <div className="absolute top-0 bottom-0 left-0 w-2 bg-cyan-500" />
+          <div className="absolute top-[-40px] left-[-40px] w-64 h-64 bg-cyan-500/[0.03] rounded-full blur-3xl pointer-events-none" />
 
-              <div>
-                <h2 className={`text-2xl sm:text-4xl font-black leading-tight ${isLight ? 'text-slate-900' : 'text-white'}`}>
-                  {primaryPlatform.name}
-                </h2>
-                <div className="flex flex-wrap items-center gap-3 mt-2">
-                  <p className="text-sm sm:text-base font-bold text-sky-600 dark:text-sky-300">
-                    تقديم الأستاذ {primaryPlatform.teacherName} — {primaryPlatform.teacherTitle}
-                  </p>
-                  {Boolean(primaryPlatform.teacherBio || primaryPlatform.teacherExperienceYears) && (
-                    <button
-                      type="button"
-                      onClick={() => setViewingTeacherPlatform(primaryPlatform)}
-                      className="px-3 py-1 rounded-xl bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-400 hover:to-orange-400 text-slate-950 font-black text-xs inline-flex items-center gap-1.5 shadow-md shadow-amber-500/20 transition-all cursor-pointer"
-                    >
-                      <Award className="w-3.5 h-3.5 stroke-[2.5]" />
-                      <span>نبذة وخبرات المعلم</span>
-                    </button>
-                  )}
-                </div>
-              </div>
-
-              <p className={`text-sm leading-relaxed ${isLight ? 'text-slate-600' : 'text-slate-300'}`}>
-                {primaryPlatform.teacherBio}
-              </p>
-
-              {/* Platform Features Grid */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-2">
-                {primaryPlatform.features.map((feat, idx) => (
-                  <div
-                    key={idx}
-                    className={`flex items-center gap-2 text-xs font-semibold p-2.5 rounded-xl border ${
-                      isLight
-                        ? 'bg-white border-slate-200 text-slate-700'
-                        : 'bg-slate-900/90 border-slate-800 text-slate-200'
-                    }`}
-                  >
-                    <CheckCircle className="w-4 h-4 text-emerald-500 shrink-0" />
-                    <span className="line-clamp-1">{feat}</span>
-                  </div>
-                ))}
-              </div>
-
-              {/* Direct Action Buttons */}
-              <div className="pt-4 flex flex-wrap items-center gap-4">
-                <button
-                  onClick={() => {
-                    setSelectedPlatformId(primaryPlatform.id);
-                    setCurrentView('platform_detail');
-                  }}
-                  className="px-8 py-4 rounded-2xl font-black text-sm bg-gradient-to-r from-sky-400 to-cyan-400 hover:from-sky-300 hover:to-cyan-300 text-slate-950 shadow-xl shadow-cyan-950/30 transition-all flex items-center gap-2.5 cursor-pointer"
-                >
-                  <GraduationCap className="w-5 h-5 stroke-[2.5]" />
-                  <span>دخول منصة {primaryPlatform.teacherName} وعرض المحتوى</span>
-                  <ArrowLeft className="w-4 h-4" />
-                </button>
-              </div>
+          <div className="max-w-2xl mx-auto space-y-7 relative z-10">
+            <div className="inline-flex items-center gap-2 px-3 py-1 rounded bg-cyan-500/15 text-cyan-400 text-xs font-black border border-cyan-500/20 mx-auto">
+              <Phone className="w-4 h-4 text-cyan-400" />
+              <span>خط الاتصال المؤسسي الموحد</span>
             </div>
 
-            {/* Right Column: Platform Visual Card */}
-            <div className="lg:col-span-5">
-              <div
-                className={`p-6 rounded-3xl border shadow-xl relative overflow-hidden space-y-4 ${
-                  isLight
-                    ? 'bg-white border-sky-100 shadow-sky-100/60'
-                    : 'bg-slate-900/95 border-slate-800 shadow-slate-950'
-                }`}
+            <h2 className="text-2xl sm:text-4xl font-black text-white leading-tight">
+              للاستفسارات فقط
+            </h2>
+
+            <p className="text-xs sm:text-sm text-slate-300 leading-relaxed">
+              للتواصل والتنسيق الأكاديمي، أو لطلب تراخيص تأسيس منصات مستقلة جديدة لمعلمي وموجهي المواد التعليمية المعتمدة بالمنظومة، يرجى التواصل مباشرة عبر خط الاستفسارات الموحد:
+            </p>
+
+            <div className="flex flex-col sm:flex-row items-center justify-center gap-4 pt-2">
+              <a
+                href={WHATSAPP_LINK_INQUIRIES}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="w-full sm:w-auto px-8 py-4 rounded-xl font-black text-sm bg-cyan-500 hover:bg-cyan-400 text-slate-950 shadow-md transition-all duration-300 flex items-center justify-center gap-3 cursor-pointer"
               >
-                <div className="relative h-48 rounded-2xl overflow-hidden shadow-md">
-                  <img
-                    src={primaryPlatform.bannerImage}
-                    alt={primaryPlatform.name}
-                    referrerPolicy="no-referrer"
-                    className="w-full h-full object-cover"
-                  />
-                  <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/30 to-transparent" />
-                  <div className="absolute bottom-3 right-3 flex items-center gap-3">
-                    <img
-                      src={primaryPlatform.teacherAvatar}
-                      alt={primaryPlatform.teacherName}
-                      referrerPolicy="no-referrer"
-                      className="w-12 h-12 rounded-xl object-cover border-2 border-white shadow-lg"
-                    />
-                    <div className="text-white">
-                      <p className="text-sm font-black">{primaryPlatform.teacherName}</p>
-                      <p className="text-xs text-sky-300">{primaryPlatform.subject}</p>
-                    </div>
-                  </div>
-                </div>
+                <MessageCircle className="w-5 h-5 fill-slate-950 text-slate-950" />
+                <span>رقم الاستفسارات المباشر: {CONTACT_NUMBER}</span>
+              </a>
 
-                <div className="space-y-3 pt-2">
-                  <div className="flex items-center justify-between text-xs">
-                    <span className={isLight ? 'text-slate-500' : 'text-slate-400'}>المادة التعليمية:</span>
-                    <span className="font-black text-sky-600 dark:text-sky-400">{primaryPlatform.subject}</span>
-                  </div>
-                  <div className="flex items-center justify-between text-xs">
-                    <span className={isLight ? 'text-slate-500' : 'text-slate-400'}>الكورسات المتاحة:</span>
-                    <span className="font-black text-emerald-600 dark:text-emerald-400">
-                      {courses.filter(c => c.platformId === primaryPlatform.id).length} كورس
-                    </span>
-                  </div>
-                  <div className="flex items-center justify-between text-xs">
-                    <span className={isLight ? 'text-slate-500' : 'text-slate-400'}>تقييم المنصة:</span>
-                    <span className="font-black text-amber-500 flex items-center gap-1">
-                      <Star className="w-3.5 h-3.5 fill-amber-400 text-amber-400" />
-                      {primaryPlatform.rating} / 5.0
-                    </span>
-                  </div>
-                </div>
-              </div>
+              <button
+                type="button"
+                onClick={() => {
+                  setCurrentView('rental_form');
+                  window.scrollTo({ top: 0, behavior: 'smooth' });
+                }}
+                className="w-full sm:w-auto px-6 py-4 rounded-xl font-black text-xs bg-white/10 hover:bg-white/15 text-white border border-white/10 transition-all flex items-center justify-center gap-2 cursor-pointer"
+              >
+                <FileCode className="w-4 h-4" />
+                <span>تقديم طلب حجز وتأسيس منصة</span>
+              </button>
             </div>
-
           </div>
-        </div>
-      )}
-
-      {/* ========================================================================= */}
-      {/* SECTION 4: DEEP STUDENT LEARNING EXPERIENCE SHOWCASE (المزايا التقنية للطالب) */}
-      {/* ========================================================================= */}
-      <div className="space-y-8">
-        <div className="text-center space-y-2 max-w-3xl mx-auto">
-          <div className="inline-flex items-center gap-2 px-3.5 py-1 rounded-full bg-cyan-500/10 text-cyan-600 dark:text-cyan-400 text-xs font-bold border border-cyan-500/20">
-            <Zap className="w-4 h-4" />
-            <span>تجربة تعلم متطورة بدون تعقيد</span>
-          </div>
-          <h2 className={`text-2xl sm:text-4xl font-black ${isLight ? 'text-slate-900' : 'text-white'}`}>
-            كل ما يحتاجه الطالب المتفوق في مكان واحد
-          </h2>
-          <p className={`text-xs sm:text-sm ${isLight ? 'text-slate-600' : 'text-slate-400'}`}>
-            مصممة بعناية فائقة لتوفير بيئة تعليمية هادئة وسريعة وبدون أي مشتتات
-          </p>
-        </div>
-
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          
-          {/* Card 1: Video Player */}
-          <div
-            className={`p-7 rounded-3xl border shadow-xl space-y-4 transition-all hover:-translate-y-1 ${
-              isLight ? 'bg-white border-slate-200 shadow-slate-100' : 'bg-slate-900/90 border-slate-800'
-            }`}
-          >
-            <div className="w-12 h-12 rounded-2xl bg-cyan-500/15 text-cyan-500 flex items-center justify-center font-bold">
-              <Video className="w-6 h-6" />
-            </div>
-            <h3 className={`text-lg font-black ${isLight ? 'text-slate-900' : 'text-white'}`}>
-              مشغل دروس محمي مع تذكر التوقف
-            </h3>
-            <p className={`text-xs leading-relaxed ${isLight ? 'text-slate-600' : 'text-slate-300'}`}>
-              مشاهدة مرئية نقية تدعم جودات متعددة، التحكم في السرعة، وتحديد موضع التوقف التلقائي لكل درس لاستكمال المذاكرة فوراً من أي جهاز.
-            </p>
-          </div>
-
-          {/* Card 2: Exams with Concept Sheets */}
-          <div
-            className={`p-7 rounded-3xl border shadow-xl space-y-4 transition-all hover:-translate-y-1 ${
-              isLight ? 'bg-white border-slate-200 shadow-slate-100' : 'bg-slate-900/90 border-slate-800'
-            }`}
-          >
-            <div className="w-12 h-12 rounded-2xl bg-emerald-500/15 text-emerald-500 flex items-center justify-center font-bold">
-              <FileText className="w-6 h-6" />
-            </div>
-            <h3 className={`text-lg font-black ${isLight ? 'text-slate-900' : 'text-white'}`}>
-              امتحانات تفاعلية وأوراق المفاهيم
-            </h3>
-            <p className={`text-xs leading-relaxed ${isLight ? 'text-slate-600' : 'text-slate-300'}`}>
-              نافذة جانبية مخصصة لعرض ورقة المفاهيم والقوانين أثناء الحل، مع تصحيح آلي فوري، وتوضيح الإجابة النموذجية فور تسليم الامتحان.
-            </p>
-          </div>
-
-          {/* Card 3: Wallet & Charging */}
-          <div
-            className={`p-7 rounded-3xl border shadow-xl space-y-4 transition-all hover:-translate-y-1 ${
-              isLight ? 'bg-white border-slate-200 shadow-slate-100' : 'bg-slate-900/90 border-slate-800'
-            }`}
-          >
-            <div className="w-12 h-12 rounded-2xl bg-amber-500/15 text-amber-500 flex items-center justify-center font-bold">
-              <Wallet className="w-6 h-6" />
-            </div>
-            <h3 className={`text-lg font-black ${isLight ? 'text-slate-900' : 'text-white'}`}>
-              شحن المحفظة وشفرات السنتر (16 رقم)
-            </h3>
-            <p className={`text-xs leading-relaxed ${isLight ? 'text-slate-600' : 'text-slate-300'}`}>
-              إمكانية الشحن الإلكتروني الفوري عبر فودافون كاش وإنستا باي، أو كتابة كود الاشتراك المطبوع من السنتر (16 رقم) لتفعيل المحاضرات فوراً.
-            </p>
-          </div>
-
-          {/* Card 4: Homework Submission */}
-          <div
-            className={`p-7 rounded-3xl border shadow-xl space-y-4 transition-all hover:-translate-y-1 ${
-              isLight ? 'bg-white border-slate-200 shadow-slate-100' : 'bg-slate-900/90 border-slate-800'
-            }`}
-          >
-            <div className="w-12 h-12 rounded-2xl bg-sky-500/15 text-sky-500 flex items-center justify-center font-bold">
-              <GraduationCap className="w-6 h-6" />
-            </div>
-            <h3 className={`text-lg font-black ${isLight ? 'text-slate-900' : 'text-white'}`}>
-              تسليم الواجبات ورصد الملاحظات
-            </h3>
-            <p className={`text-xs leading-relaxed ${isLight ? 'text-slate-600' : 'text-slate-300'}`}>
-              رفع إجابات الواجبات المقالية والتطبيقية، مع إمكانية مراجعة الدرجات ورصد ملحوظات معلم المادة لتطوير خطتك الدراسية.
-            </p>
-          </div>
-
-          {/* Card 5: Lecture Notes */}
-          <div
-            className={`p-7 rounded-3xl border shadow-xl space-y-4 transition-all hover:-translate-y-1 ${
-              isLight ? 'bg-white border-slate-200 shadow-slate-100' : 'bg-slate-900/90 border-slate-800'
-            }`}
-          >
-            <div className="w-12 h-12 rounded-2xl bg-purple-500/15 text-purple-500 flex items-center justify-center font-bold">
-              <FileCode className="w-6 h-6" />
-            </div>
-            <h3 className={`text-lg font-black ${isLight ? 'text-slate-900' : 'text-white'}`}>
-              تدوين الملاحظات والأسئلة الخاصة
-            </h3>
-            <p className={`text-xs leading-relaxed ${isLight ? 'text-slate-600' : 'text-slate-300'}`}>
-              حفظ نوتس وملاحظات الشرح المرتبطة بثانية المشاهدة داخل كل درس، مع إمكانية توجيه الأسئلة لمساعدي المعلم والرد المباشر.
-            </p>
-          </div>
-
-          {/* Card 6: Account Protection */}
-          <div
-            className={`p-7 rounded-3xl border shadow-xl space-y-4 transition-all hover:-translate-y-1 ${
-              isLight ? 'bg-white border-slate-200 shadow-slate-100' : 'bg-slate-900/90 border-slate-800'
-            }`}
-          >
-            <div className="w-12 h-12 rounded-2xl bg-rose-500/15 text-rose-500 flex items-center justify-center font-bold">
-              <Lock className="w-6 h-6" />
-            </div>
-            <h3 className={`text-lg font-black ${isLight ? 'text-slate-900' : 'text-white'}`}>
-              ربط الحساب بجهاز الطالب
-            </h3>
-            <p className={`text-xs leading-relaxed ${isLight ? 'text-slate-600' : 'text-slate-300'}`}>
-              حماية خصوصيتك واشتراكك بربط الحساب تلقائياً بجهازك الخاص لضمان عدم خروج الحساب أو تداخله مع أي أجهزة أخرى.
-            </p>
-          </div>
-
         </div>
       </div>
 
       {/* ========================================================================= */}
-      {/* SECTION 5: STUDENT & GUARDIAN FAQ SECTION */}
+      {/* SECTION 7: DETAILED FEATURES GRID */}
       {/* ========================================================================= */}
-      <div className="space-y-8 max-w-4xl mx-auto">
+      <div className="space-y-10">
         <div className="text-center space-y-2">
-          <div className="inline-flex items-center gap-2 px-3.5 py-1 rounded-full bg-sky-500/10 text-sky-600 dark:text-sky-400 text-xs font-bold border border-sky-500/20">
-            <HelpCircle className="w-4 h-4" />
-            <span>الأسئلة الشائعة للطلاب وأولياء الأمور</span>
-          </div>
+          <div className="text-cyan-500 font-black text-xs">معايير الجودة التقنية والمدرسية</div>
           <h2 className={`text-2xl sm:text-3xl font-black ${isLight ? 'text-slate-900' : 'text-white'}`}>
-            كل ما تريد معرفته عن نظام SEA
+            بنية تحتية مبنية بمعايير مؤسسية حاسمة
+          </h2>
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          <div className={`p-6.5 rounded-2xl border ${isLight ? 'bg-white border-slate-200' : 'bg-slate-900 border-slate-800'} space-y-4`}>
+            <div className="w-10 h-10 rounded-xl bg-cyan-500/10 text-cyan-500 flex items-center justify-center font-bold">
+              <Video className="w-5 h-5" />
+            </div>
+            <h4 className={`text-base font-black ${isLight ? 'text-slate-900' : 'text-white'}`}>مشغل فيديوهات معزز الحماية</h4>
+            <p className="text-xs text-slate-400 leading-relaxed">
+              تقنيات متقدمة تمنع تصوير الشاشة أو التسجيل، مع تعديل تلقائي لجودة البث وسرعة العرض بما يتناسب مع سرعة الاتصال.
+            </p>
+          </div>
+
+          <div className={`p-6.5 rounded-2xl border ${isLight ? 'bg-white border-slate-200' : 'bg-slate-900 border-slate-800'} space-y-4`}>
+            <div className="w-10 h-10 rounded-xl bg-cyan-500/10 text-cyan-500 flex items-center justify-center font-bold">
+              <ShieldCheck className="w-5 h-5" />
+            </div>
+            <h4 className={`text-base font-black ${isLight ? 'text-slate-900' : 'text-white'}`}>ربط الحساب بجهاز الطالب</h4>
+            <p className="text-xs text-slate-400 leading-relaxed">
+              تأمين الحسابات عبر تقنيات ربط العتاد (Hardware Locking)، لحماية بيانات واشتراك الطلاب ومنع تداول كلمات المرور والقرصنة.
+            </p>
+          </div>
+
+          <div className={`p-6.5 rounded-2xl border ${isLight ? 'bg-white border-slate-200' : 'bg-slate-900 border-slate-800'} space-y-4`}>
+            <div className="w-10 h-10 rounded-xl bg-cyan-500/10 text-cyan-500 flex items-center justify-center font-bold">
+              <Award className="w-5 h-5" />
+            </div>
+            <h4 className={`text-base font-black ${isLight ? 'text-slate-900' : 'text-white'}`}>تقارير متابعة دورية كاملة</h4>
+            <p className="text-xs text-slate-400 leading-relaxed">
+              إمكانية تصدير وطباعة تقارير فورية بصيغة PDF للنتائج والمستويات والواجبات المنزلية، لمشاركتها بصفة دورية مع أولياء الأمور.
+            </p>
+          </div>
+        </div>
+      </div>
+
+      {/* ========================================================================= */}
+      {/* SECTION 8: PLATFORM FAQ ACCORDION */}
+      {/* ========================================================================= */}
+      <div className="max-w-4xl mx-auto space-y-8">
+        <div className="text-center space-y-2">
+          <div className="text-cyan-500 font-black text-xs">مستودع المعرفة للطلاب والزوار</div>
+          <h2 className={`text-2xl sm:text-3xl font-black ${isLight ? 'text-slate-900' : 'text-white'}`}>
+            الأسئلة الشائعة والأجوبة الرسمية
           </h2>
         </div>
 
         <div className="space-y-3">
-          {studentFaqs.map((faq, index) => {
-            const isOpen = activeFaqIndex === index;
+          {studentFaqs.map((faq, idx) => {
+            const isOpen = activeFaqIndex === idx;
             return (
               <div
-                key={index}
-                className={`rounded-2xl border transition-all overflow-hidden ${
-                  isLight
-                    ? 'bg-white border-slate-200'
-                    : 'bg-slate-900 border-slate-800'
+                key={idx}
+                className={`border rounded-xl transition-all overflow-hidden ${
+                  isOpen
+                    ? isLight
+                      ? 'bg-slate-50 border-slate-300'
+                      : 'bg-slate-900/80 border-slate-700'
+                    : isLight
+                    ? 'bg-white border-slate-200 hover:border-slate-300'
+                    : 'bg-slate-900/40 border-slate-800 hover:border-slate-700'
                 }`}
               >
                 <button
                   type="button"
-                  onClick={() => setActiveFaqIndex(isOpen ? null : index)}
-                  className="w-full p-5 text-right font-black text-xs sm:text-sm flex items-center justify-between gap-4 cursor-pointer"
+                  onClick={() => setActiveFaqIndex(isOpen ? null : idx)}
+                  className="w-full px-6 py-4.5 text-right font-black text-xs sm:text-sm flex items-center justify-between cursor-pointer focus:outline-none"
                 >
                   <span className={isLight ? 'text-slate-900' : 'text-white'}>{faq.question}</span>
-                  <ChevronDown
-                    className={`w-5 h-5 text-cyan-500 shrink-0 transition-transform duration-300 ${
-                      isOpen ? 'rotate-180' : ''
-                    }`}
-                  />
+                  <span className={`text-cyan-500 transition-transform duration-300 ${isOpen ? 'rotate-180' : ''}`}>
+                    ▼
+                  </span>
                 </button>
-
                 {isOpen && (
-                  <div className={`p-5 pt-0 text-xs sm:text-sm leading-relaxed border-t border-dashed ${
-                    isLight ? 'border-slate-100 text-slate-600' : 'border-slate-800 text-slate-300'
-                  }`}>
+                  <div className={`px-6 pb-5 text-xs sm:text-sm leading-relaxed ${isLight ? 'text-slate-600' : 'text-slate-300'}`}>
                     {faq.answer}
                   </div>
                 )}
@@ -779,245 +810,93 @@ export const HomeHero: React.FC = () => {
       </div>
 
       {/* ========================================================================= */}
-      {/* SECTION 6 (BOTTOM LOWER SECTION): DEDICATED TEACHER & CENTER PLATFORM SECTION */}
-      {/* (قسم المعلمين والسناتر - في أسفل الصفحة الرئيسية حسب طلب المستخدم) */}
+      {/* SECTION 9: ACCREDITED INSTITUTIONAL FOOTER */}
       {/* ========================================================================= */}
-      <div
-        id="section-teachers-launch"
-        className={`p-8 sm:p-12 rounded-3xl border shadow-2xl relative overflow-hidden transition-all mt-16 ${
-          isLight
-            ? 'bg-gradient-to-br from-slate-900 via-cyan-950 to-slate-950 text-white border-cyan-800 shadow-cyan-950/20'
-            : 'bg-gradient-to-br from-[#060b18] via-[#09152a] to-[#040814] text-white border-cyan-500/30 shadow-2xl shadow-cyan-950/50'
-        }`}
-      >
-        <div className="absolute top-0 left-0 w-96 h-96 bg-cyan-500/10 rounded-full blur-3xl pointer-events-none" />
-        <div className="absolute bottom-0 right-0 w-96 h-96 bg-blue-500/10 rounded-full blur-3xl pointer-events-none" />
+      <footer className="border-t pt-10 text-center space-y-4 border-slate-200 dark:border-slate-800 text-slate-400 text-xs">
+        <p className="font-bold">منظومة SEA التعليمية الذكية • البوابة الموحدة للمنصات والمستودعات الرقمية المعتمدة</p>
+        <p className="font-medium text-[11px]">
+          تطوير وإشراف هندسي: <span className="font-mono text-cyan-500 font-bold">Nour El-Saeed (Nour Mohamed El-Saeed)</span> • كافة الحقوق البرمجية والمحتوى محفوظة للجهة المالكة والمشرفين © 2026 - 2027 م.
+        </p>
+      </footer>
 
-        <div className="relative z-10 space-y-8">
-          
-          {/* Header & Main Call to Action */}
-          <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-6 border-b border-white/10 pb-6">
-            <div className="space-y-2 max-w-2xl">
-              <div className="inline-flex items-center gap-2 px-3.5 py-1 rounded-full bg-cyan-500/20 text-cyan-300 border border-cyan-400/30 text-xs font-black">
-                <Building className="w-4 h-4 text-cyan-400" />
-                <span>خاص بالمعلمين وأصحاب المراكز والسناتر التعليمية</span>
-              </div>
-              <h2 className="text-2xl sm:text-4xl font-black leading-tight text-white">
-                هل أنت معلم أو صاحب سنتر تعليمي وتريد إطلاق منصتك الرقمية الخاصة داخل نظام SEA؟
-              </h2>
-              <p className="text-xs sm:text-sm text-cyan-100/80 leading-relaxed">
-                نوفر لك منصة تعليمية رقمية متكاملة تدار بالكامل باسمك وشعارك، مع نظام حماية الفيديوهات من التسريب، إصدار أكواد الشحن المطبوعة للسنتر، وبنك أسئلة متكامل.
-              </p>
-            </div>
-
-            <div className="flex flex-col sm:flex-row gap-3 w-full md:w-auto shrink-0">
-              <a
-                href={WHATSAPP_LINK_TEACHER}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="px-6 py-3.5 rounded-2xl font-black text-xs sm:text-sm bg-emerald-500 hover:bg-emerald-600 text-white shadow-xl shadow-emerald-950/50 transition-all flex items-center justify-center gap-2 cursor-pointer"
-              >
-                <MessageCircle className="w-4 h-4 fill-white" />
-                <span>حجز المنصة عبر الواتساب: {WHATSAPP_NUMBER}</span>
-              </a>
-
-              <button
-                type="button"
-                onClick={() => {
-                  setCurrentView('rental_form');
-                  window.scrollTo({ top: 0, behavior: 'smooth' });
-                }}
-                className="px-6 py-3.5 rounded-2xl font-black text-xs sm:text-sm bg-cyan-400 hover:bg-cyan-300 text-slate-950 shadow-xl transition-all flex items-center justify-center gap-2 cursor-pointer"
-              >
-                <FileCode className="w-4 h-4" />
-                <span>تعبئة طلب استئجار منصة</span>
-              </button>
-            </div>
-          </div>
-
-          {/* Teacher Capabilities & Platform Specifications */}
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            
-            <div className="p-5 rounded-2xl bg-white/5 border border-white/10 space-y-2">
-              <div className="w-10 h-10 rounded-xl bg-cyan-500/20 flex items-center justify-center text-cyan-400">
-                <ShieldCheck className="w-5 h-5" />
-              </div>
-              <h3 className="text-base font-black text-white">حماية الفيديوهات والعلامة المائية</h3>
-              <p className="text-xs text-slate-300 leading-relaxed">
-                طباعة متحركة لاسم ورقم هاتف الطالب عبر شاشة المحاضرة لمنع التسريب وحظر كافة برامج وتسجيلات الشاشة.
-              </p>
-            </div>
-
-            <div className="p-5 rounded-2xl bg-white/5 border border-white/10 space-y-2">
-              <div className="w-10 h-10 rounded-xl bg-amber-500/20 flex items-center justify-center text-amber-400">
-                <Zap className="w-5 h-5" />
-              </div>
-              <h3 className="text-base font-black text-white">إصدار أكواد الشحن المطبوعة (16 رقم)</h3>
-              <p className="text-xs text-slate-300 leading-relaxed">
-                إنشاء وإدارة دفعة كروت شحن مطبوعة ومحمية برمز مكون من 16 رقم لبيعها لطلاب السنتر وتسهيل الاشتراك.
-              </p>
-            </div>
-
-            <div className="p-5 rounded-2xl bg-white/5 border border-white/10 space-y-2">
-              <div className="w-10 h-10 rounded-xl bg-emerald-500/20 flex items-center justify-center text-emerald-400">
-                <GraduationCap className="w-5 h-5" />
-              </div>
-              <h3 className="text-base font-black text-white">امتحانات وبنك أسئلة مع أوراق المفاهيم</h3>
-              <p className="text-xs text-slate-300 leading-relaxed">
-                إضافة بنك أسئلة تصنيفي، امتحانات محددة بوقت، ربط ورقة المفاهيم، ومنع الغش بتقييد ملء الشاشة والتصحيح الآلي.
-              </p>
-            </div>
-
-            <div className="p-5 rounded-2xl bg-white/5 border border-white/10 space-y-2">
-              <div className="w-10 h-10 rounded-xl bg-sky-500/20 flex items-center justify-center text-sky-400">
-                <Smartphone className="w-5 h-5" />
-              </div>
-              <h3 className="text-base font-black text-white">ربط جهاز الطالب والأجهزة المسموحة</h3>
-              <p className="text-xs text-slate-300 leading-relaxed">
-                ربط أوتوماتيكي لجهاز الطالب لمنع مشاركة وتداول الحسابات، مع لوحة للتحكم وإلغاء الربط عند الضرورة.
-              </p>
-            </div>
-
-            <div className="p-5 rounded-2xl bg-white/5 border border-white/10 space-y-2">
-              <div className="w-10 h-10 rounded-xl bg-purple-500/20 flex items-center justify-center text-purple-400">
-                <Users className="w-5 h-5" />
-              </div>
-              <h3 className="text-base font-black text-white">حسابات خاصة لمساعدي المعلم</h3>
-              <p className="text-xs text-slate-300 leading-relaxed">
-                تخصيص حسابات لمساعديك لمتابعة غياب وحضور الطلاب، تصحيح الواجبات المقالية، وإرسال التقارير لأولياء الأمور.
-              </p>
-            </div>
-
-            <div className="p-5 rounded-2xl bg-white/5 border border-white/10 space-y-2">
-              <div className="w-10 h-10 rounded-xl bg-blue-500/20 flex items-center justify-center text-blue-400">
-                <Headphones className="w-5 h-5" />
-              </div>
-              <h3 className="text-base font-black text-white">دعم فني وتجهيز المنصة خلال ساعات</h3>
-              <p className="text-xs text-slate-300 leading-relaxed">
-                فريق مهندسين متكامل لتجهيز وإطلاق منصتك باسمك وشعارك وسيرفراتك خلال أقل من 24 ساعة مع متابعة دورية.
-              </p>
-            </div>
-
-          </div>
-
-        </div>
-      </div>
-
-      {/* Teacher Profile & Professional Info Modal */}
+      {/* ========================================================================= */}
+      {/* MODAL: TEACHER BIO MODAL DETAILED VIEW */}
+      {/* ========================================================================= */}
       {viewingTeacherPlatform && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-sm animate-fade-in text-right">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-md">
           <div
-            className={`w-full max-w-2xl rounded-3xl p-6 sm:p-8 border shadow-2xl space-y-6 max-h-[90vh] overflow-y-auto custom-scrollbar ${
-              isLight ? 'bg-white border-slate-200 text-slate-900' : 'bg-slate-900 border-slate-800 text-white'
+            className={`w-full max-w-2xl rounded-2xl border text-right overflow-hidden shadow-2xl transition-all ${
+              isLight ? 'bg-white border-slate-200' : 'bg-slate-900 border-slate-800'
             }`}
           >
-            {/* Header */}
-            <div className="flex items-center justify-between border-b pb-4 border-slate-200 dark:border-slate-800">
-              <div className="flex items-center gap-4">
-                <img
-                  src={viewingTeacherPlatform.teacherAvatar}
-                  alt={viewingTeacherPlatform.teacherName}
-                  referrerPolicy="no-referrer"
-                  className="w-16 h-16 rounded-2xl object-cover border-2 border-amber-500 shadow-md"
-                />
-                <div>
-                  <div className="flex items-center gap-2">
-                    <h3 className="text-lg sm:text-xl font-black">{viewingTeacherPlatform.teacherName}</h3>
-                    <span className="px-2.5 py-0.5 rounded-full bg-amber-500/20 text-amber-600 dark:text-amber-300 text-xs font-bold">
-                      معلم معتمد
-                    </span>
-                  </div>
-                  <p className="text-xs sm:text-sm text-slate-500 dark:text-slate-400 font-semibold mt-0.5">
-                    {viewingTeacherPlatform.teacherTitle} — {viewingTeacherPlatform.subject}
-                  </p>
-                </div>
-              </div>
-
+            {/* Modal Header */}
+            <div className="p-6 border-b flex items-center justify-between border-slate-200 dark:border-slate-800">
+              <h3 className={`text-lg font-black ${isLight ? 'text-slate-900' : 'text-white'}`}>
+                السجل الأكاديمي والخبرات للمعلم
+              </h3>
               <button
-                type="button"
                 onClick={() => setViewingTeacherPlatform(null)}
-                className="w-9 h-9 rounded-full bg-slate-100 dark:bg-slate-800 flex items-center justify-center text-slate-500 hover:text-slate-900 dark:hover:text-white cursor-pointer transition-colors"
+                className="p-1.5 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-400 cursor-pointer"
               >
                 ✕
               </button>
             </div>
 
-            {/* Profile Content */}
-            <div className="space-y-4">
-              {viewingTeacherPlatform.teacherBio && (
-                <div className={`p-4 rounded-2xl border ${isLight ? 'bg-slate-50 border-slate-200' : 'bg-slate-950 border-slate-800/80'}`}>
-                  <span className="text-xs font-bold text-slate-500 dark:text-slate-400 block mb-1.5 flex items-center gap-1.5">
-                    <span>📖</span>
-                    <span>النبذة التعريفية:</span>
-                  </span>
-                  <p className="text-xs sm:text-sm leading-relaxed text-slate-700 dark:text-slate-200">
-                    {viewingTeacherPlatform.teacherBio}
-                  </p>
+            {/* Modal Body */}
+            <div className="p-6 space-y-6">
+              <div className="flex items-center gap-4">
+                <img
+                  src={viewingTeacherPlatform.teacherAvatar}
+                  alt={viewingTeacherPlatform.teacherName}
+                  referrerPolicy="no-referrer"
+                  className="w-16 h-16 rounded-xl object-cover border-2 border-cyan-500/30"
+                  onError={(e) => {
+                    (e.currentTarget as HTMLImageElement).style.display = 'none';
+                  }}
+                />
+                <div>
+                  <h4 className={`text-base font-black ${isLight ? 'text-slate-900' : 'text-white'}`}>
+                    الأستاذ {viewingTeacherPlatform.teacherName}
+                  </h4>
+                  <p className="text-xs text-cyan-500 font-bold">{viewingTeacherPlatform.teacherTitle}</p>
                 </div>
-              )}
+              </div>
 
-              {viewingTeacherPlatform.teacherExperienceYears && (
-                <div className={`p-4 rounded-2xl border ${isLight ? 'bg-amber-50/50 border-amber-200' : 'bg-amber-950/20 border-amber-500/30'}`}>
-                  <span className="text-xs font-bold text-amber-700 dark:text-amber-300 block mb-1.5 flex items-center gap-1.5">
-                    <span>⏳</span>
-                    <span>مدة وسنوات الخبرة والتدريس:</span>
+              <div className="space-y-3 text-xs leading-relaxed">
+                <div>
+                  <span className="font-black text-slate-400 block mb-1">المادة والتخصص:</span>
+                  <span className={`font-bold ${isLight ? 'text-slate-700' : 'text-slate-300'}`}>
+                    مادة {viewingTeacherPlatform.subject}
                   </span>
-                  <p className="text-xs sm:text-sm font-semibold text-slate-800 dark:text-slate-200">
-                    {viewingTeacherPlatform.teacherExperienceYears}
-                  </p>
                 </div>
-              )}
-
-              {viewingTeacherPlatform.teacherCertificates && (
-                <div className={`p-4 rounded-2xl border ${isLight ? 'bg-emerald-50/50 border-emerald-200' : 'bg-emerald-950/20 border-emerald-500/30'}`}>
-                  <span className="text-xs font-bold text-emerald-700 dark:text-emerald-300 block mb-1.5 flex items-center gap-1.5">
-                    <span>📜</span>
-                    <span>الشهادات والمؤهلات العلمية:</span>
-                  </span>
-                  <p className="text-xs sm:text-sm font-semibold text-slate-800 dark:text-slate-200">
-                    {viewingTeacherPlatform.teacherCertificates}
-                  </p>
-                </div>
-              )}
-
-              {viewingTeacherPlatform.teacherHighlights && (
-                <div className={`p-4 rounded-2xl border ${isLight ? 'bg-sky-50/50 border-sky-200' : 'bg-sky-950/20 border-sky-500/30'}`}>
-                  <span className="text-xs font-bold text-sky-700 dark:text-sky-300 block mb-1.5 flex items-center gap-1.5">
-                    <span>🌟</span>
-                    <span>أبرز ما يميز الأسلوب وطريقة الشرح:</span>
-                  </span>
-                  <p className="text-xs sm:text-sm leading-relaxed text-slate-800 dark:text-slate-200">
-                    {viewingTeacherPlatform.teacherHighlights}
-                  </p>
-                </div>
-              )}
+                {viewingTeacherPlatform.teacherBio && (
+                  <div>
+                    <span className="font-black text-slate-400 block mb-1">النبذة التعريفية الرسمية:</span>
+                    <p className={isLight ? 'text-slate-600' : 'text-slate-300'}>
+                      {viewingTeacherPlatform.teacherBio}
+                    </p>
+                  </div>
+                )}
+                {viewingTeacherPlatform.teacherExperienceYears && (
+                  <div>
+                    <span className="font-black text-slate-400 block mb-1">سجل سنوات الخبرة التعليمية المعتمدة:</span>
+                    <span className="font-bold text-cyan-500">
+                      أكثر من {viewingTeacherPlatform.teacherExperienceYears} سنوات خبرة في تدريس المناهج الرسمية واللغات.
+                    </span>
+                  </div>
+                )}
+              </div>
             </div>
 
-            {/* Modal Actions */}
-            <div className="pt-4 border-t border-slate-200 dark:border-slate-800 flex items-center justify-between">
+            {/* Modal Footer */}
+            <div className="p-6 border-t flex justify-end border-slate-200 dark:border-slate-800">
               <button
-                type="button"
-                onClick={() => {
-                  const id = viewingTeacherPlatform.id;
-                  setViewingTeacherPlatform(null);
-                  setSelectedPlatformId(id);
-                  setCurrentView('platform_detail');
-                }}
-                className="px-6 py-2.5 rounded-xl bg-gradient-to-r from-sky-400 to-cyan-400 hover:from-sky-300 hover:to-cyan-300 text-slate-950 font-black text-xs transition-all shadow-md cursor-pointer flex items-center gap-2"
-              >
-                <span>الانتقال لمنصة المعلم</span>
-                <ChevronRight className="w-3.5 h-3.5" />
-              </button>
-
-              <button
-                type="button"
                 onClick={() => setViewingTeacherPlatform(null)}
-                className="px-5 py-2.5 rounded-xl bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 font-bold text-xs cursor-pointer transition-colors"
+                className="px-5 py-2.5 rounded-lg bg-cyan-500 text-slate-950 font-black text-xs cursor-pointer hover:bg-cyan-400"
               >
-                إغلاق
+                إغلاق نافذة السجل
               </button>
             </div>
-
           </div>
         </div>
       )}
