@@ -576,44 +576,16 @@ export const StudentSignUpPage: React.FC = () => {
       return;
     }
 
-    // Generate 6-Digit OTP & Go to Step 2
-    const code = Math.floor(100000 + Math.random() * 900000).toString();
-    setGeneratedOtp(code);
-    setOtpDigits(['', '', '', '', '', '']);
-    setResendTimer(60);
-    setIsResendDisabled(true);
-    setStep('email_otp');
-
-    fetch('/api/send-otp', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ email: email.trim(), otp: code, name: fourPartName.trim() }),
-    })
-      .then(async (response) => {
-        const contentType = response.headers.get('content-type') || '';
-        if (!response.ok || contentType.includes('text/html')) {
-          throw new Error('Static/Cloudflare Environment Detected');
-        }
-        return response.json();
-      })
-      .then((data) => {
-        if (!data || data.success === false) {
-          throw new Error(data?.message || 'Failed to send OTP via SMTP');
-        }
-        addToast(
-          'success',
-          'تم إرسال رمز التأكيد (OTP) ✉️',
-          `تم إرسال رمز التحقق بنجاح إلى بريدك الإلكتروني (${email.trim()}). يرجى التحقق من صندوق الوارد أو البريد المهمل (Spam).`
-        );
-      })
-      .catch((err) => {
-        console.error('Error sending verification email:', err);
-        addToast(
-          'error',
-          'فشل إرسال البريد الإلكتروني ⚠️',
-          'يرجى التأكد من صحة البريد الإلكتروني المدخل ومحاولة المحاولة مجدداً.'
-        );
-      });
+    // Skip Step 2 (Email OTP) and go directly to Step 3: Password Character Count Verification!
+    setErrorMsg('');
+    setEnteredPasswordCount('');
+    setPasswordCountError('');
+    setStep('password_count_check');
+    addToast(
+      'success',
+      'تم التحقق من بيانات الحساب 🚀',
+      'يرجى إكمال خطوات التأكيد لتأمين الحساب فوراً.'
+    );
   };
 
   // STEP 2 HANDLERS: OTP
@@ -1211,7 +1183,7 @@ export const StudentSignUpPage: React.FC = () => {
               className="w-full py-4 rounded-2xl bg-gradient-to-r from-cyan-500 via-sky-500 to-indigo-600 hover:from-cyan-400 hover:to-indigo-500 text-slate-950 font-black text-sm shadow-xl shadow-cyan-500/20 transition-all flex items-center justify-center gap-2 cursor-pointer border border-cyan-400/30"
             >
               <Send className="w-4 h-4" />
-              <span>متابعة وإرسال رمز التحقق للبريد</span>
+              <span>تأكيد البيانات والمتابعة</span>
               <ArrowRight className="w-4 h-4 rotate-180" />
             </button>
 
