@@ -603,15 +603,15 @@ export const StudentSignUpPage: React.FC = () => {
         addToast(
           'success',
           'تم إرسال رمز التأكيد (OTP) ✉️',
-          `تم إرسال رمز التحقق بنجاح إلى بريدك الإلكتروني (${email.trim()}).`
+          `تم إرسال رمز التحقق بنجاح إلى بريدك الإلكتروني (${email.trim()}). يرجى التحقق من صندوق الوارد أو البريد المهمل (Spam).`
         );
       })
       .catch((err) => {
-        console.warn('Backend SMTP server not running or Cloudflare static deployment. Fallback code:', code, err);
+        console.error('Error sending verification email:', err);
         addToast(
-          'info',
-          'بيئة العرض السحابي لـ Cloudflare ☁️',
-          `نظراً لتشغيل المنصة في بيئة Cloudflare السحابية الثابتة، رمز التفعيل السريع لحسابك هو: [ ${code} ]`
+          'error',
+          'فشل إرسال البريد الإلكتروني ⚠️',
+          'يرجى التأكد من صحة البريد الإلكتروني المدخل ومحاولة المحاولة مجدداً.'
         );
       });
   };
@@ -658,14 +658,14 @@ export const StudentSignUpPage: React.FC = () => {
         if (!data || data.success === false) {
           throw new Error(data?.message || 'Failed to send OTP via SMTP');
         }
-        addToast('success', 'تم إعادة إرسال الرمز 🔄', 'تم إرسال رمز التحقق الجديد إلى بريدك الإلكتروني.');
+        addToast('success', 'تم إعادة إرسال الرمز 🔄', 'تم إرسال رمز التحقق الجديد إلى بريدك الإلكتروني بنجاح.');
       })
       .catch((err) => {
-        console.warn('Backend SMTP server not running or Cloudflare static deployment. Fallback code:', newCode, err);
+        console.error('Error resending verification email:', err);
         addToast(
-          'info',
-          'بيئة العرض السحابي لـ Cloudflare ☁️',
-          `نظراً لتشغيل المنصة في بيئة Cloudflare السحابية الثابتة، رمز التفعيل الجديد لحسابك هو: [ ${newCode} ]`
+          'error',
+          'فشل إعادة الإرسال ⚠️',
+          'حدث خطأ أثناء محاولة إرسال البريد الإلكتروني، يرجى المحاولة مجدداً.'
         );
       });
   };
