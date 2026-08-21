@@ -576,16 +576,44 @@ export const StudentSignUpPage: React.FC = () => {
       return;
     }
 
-    // Skip Step 2 (Email OTP) and go directly to Step 3: Password Character Count Verification!
-    setErrorMsg('');
-    setEnteredPasswordCount('');
-    setPasswordCountError('');
-    setStep('password_count_check');
-    addToast(
-      'success',
-      'تم التحقق من بيانات الحساب 🚀',
-      'يرجى إكمال خطوات التأكيد لتأمين الحساب فوراً.'
-    );
+    // Generate 6-Digit OTP & Go to Step 2
+    const code = Math.floor(100000 + Math.random() * 900000).toString();
+    setGeneratedOtp(code);
+    setOtpDigits(['', '', '', '', '', '']);
+    setResendTimer(60);
+    setIsResendDisabled(true);
+    setStep('email_otp');
+
+    fetch('/api/send-otp', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email: email.trim(), otp: code, name: fourPartName.trim() }),
+    })
+      .then(async (response) => {
+        const contentType = response.headers.get('content-type') || '';
+        if (!response.ok || contentType.includes('text/html')) {
+          throw new Error('Static/Cloudflare Environment Detected');
+        }
+        return response.json();
+      })
+      .then((data) => {
+        if (!data || data.success === false) {
+          throw new Error(data?.message || 'Failed to send OTP via SMTP');
+        }
+        addToast(
+          'success',
+          'تم إرسال رمز التأكيد (OTP) ✉️',
+          `تم إرسال رمز التحقق بنجاح إلى بريدك الإلكتروني (${email.trim()}). يرجى التحقق من صندوق الوارد أو البريد المهمل (Spam).`
+        );
+      })
+      .catch((err) => {
+        console.error('Error sending verification email:', err);
+        addToast(
+          'error',
+          'فشل إرسال البريد الإلكتروني ⚠️',
+          err.message || 'يرجى التأكد من صحة البريد الإلكتروني المدخل ومحاولة المحاولة مجدداً.'
+        );
+      });
   };
 
   // STEP 2 HANDLERS: OTP

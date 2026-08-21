@@ -176,9 +176,12 @@ async function startServer() {
 
       await transporter.sendMail(mailOptions);
       res.json({ success: true, message: 'تم إرسال الرمز بنجاح.' });
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error sending email:', error);
-      res.status(500).json({ success: false, message: 'فشل إرسال البريد الإلكتروني. تأكد من صحة البريد المدخل.' });
+      res.status(500).json({ 
+        success: false, 
+        message: `فشل إرسال البريد الإلكتروني. يرجى التأكد من صحة البريد المدخل. التفاصيل: ${error.message || error}` 
+      });
     }
   });
 
