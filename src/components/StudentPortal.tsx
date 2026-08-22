@@ -8,7 +8,7 @@ import {
   Sparkles, Zap, ArrowRight, CheckCircle, RefreshCw, KeyRound,
   DollarSign, Send, Info, BellRing, Smartphone, ShieldAlert, Users,
   NotebookPen, Plus, Trash2, Edit2, Pin, CalendarDays, Layers,
-  Laptop, Monitor, Tablet, AlertTriangle, Shield
+  Laptop, Monitor, Tablet, AlertTriangle, Shield, IdCard
 } from 'lucide-react';
 import { StudentAssignmentView } from './student/StudentAssignmentView';
 import { StudentQuestionBankView } from './student/StudentQuestionBankView';
@@ -19,6 +19,7 @@ import { Course } from '../types';
 export const StudentPortal: React.FC = () => {
   const { 
     currentUser, 
+    logout,
     courses, 
     exams, 
     examSubmissions,
@@ -322,6 +323,55 @@ export const StudentPortal: React.FC = () => {
     );
   }
 
+  // --- FROZEN / BLOCKED / REJECTED ACCOUNT INTERCEPTOR ---
+  const isAccountFrozen =
+    currentUser.accountStatus === 'suspended' ||
+    currentUser.accountStatus === 'banned' ||
+    currentUser.accountStatus === 'rejected';
+
+  if (isAccountFrozen) {
+    return (
+      <div className="flex flex-col items-center justify-center py-16 px-4 text-center animate-fade-in max-w-2xl mx-auto space-y-6" dir="rtl">
+        <div className="w-20 h-20 rounded-3xl bg-rose-500/10 border border-rose-500/30 flex items-center justify-center text-rose-500 shadow-2xl animate-pulse">
+          <Lock className="w-10 h-10" />
+        </div>
+
+        <div className="space-y-2">
+          <span className="px-4 py-1.5 rounded-full text-xs font-black bg-rose-500/20 text-rose-600 dark:text-rose-400 border border-rose-500/30 inline-block">
+            {currentUser.accountStatus === 'suspended' && '🚨 تم تجميد حسابك وإيقاف الوصول إلى لوحة التحكم'}
+            {currentUser.accountStatus === 'banned' && '🚫 تم حظر الحساب نهائياً بقرار إداري'}
+            {currentUser.accountStatus === 'rejected' && '❌ تم رفض طلب القيد وإلغاء صلاحية الوصول'}
+          </span>
+          <h2 className="text-2xl sm:text-3xl font-black text-slate-900 dark:text-white">
+            عفواً، تم إيقاف وتجميد صلاحيات دخولك إلى لوحة تحكم الطالب
+          </h2>
+        </div>
+
+        <div className="p-5 rounded-2xl bg-rose-500/10 border border-rose-500/20 text-right space-y-2.5 w-full">
+          <span className="text-xs font-black text-rose-600 dark:text-rose-400 block">
+            سبب {currentUser.accountStatus === 'suspended' ? 'التجميد' : currentUser.accountStatus === 'banned' ? 'الحظر' : 'إلغاء القيد'} المدوّن بقرار شؤون الطلاب والانضباط:
+          </span>
+          <div className="p-4 rounded-xl bg-white dark:bg-slate-900 border border-rose-300 dark:border-rose-900 text-xs font-bold text-slate-900 dark:text-white leading-relaxed shadow-sm">
+            "{currentUser.accountStatusReason || currentUser.rejectionReason || 'تم تجميد الحساب بقرار إداري مباشر لمخالفة اللوائح والشروط والانضباط.'}"
+          </div>
+        </div>
+
+        <p className="text-xs text-slate-500 dark:text-slate-400 leading-relaxed max-w-lg">
+          تم إغلاق كافة صلاحيات الاطلاع على الفيديوهات، الامتحانات، والمحفظة. لمراجعة القرار وإزالة التجميد يُرجى التواصل الفوري مع قسم شؤون الطلاب والدعم الفني بالمنصة.
+        </p>
+
+        <div className="flex flex-wrap items-center justify-center gap-3 pt-2">
+          <button
+            onClick={() => logout()}
+            className="px-6 py-3 rounded-2xl bg-slate-200 dark:bg-slate-800 hover:bg-slate-300 text-slate-800 dark:text-white text-xs font-bold transition-all cursor-pointer"
+          >
+            تسجيل الخروج
+          </button>
+        </div>
+      </div>
+    );
+  }
+
   // --- RENDER DASHBOARD TAB ---
   const renderDashboard = () => {
     const myTasks = studyTasks.filter(t => t.studentId === currentUser?.id && t.status === 'pending').sort((a, b) => new Date(a.dueDate).getTime() - new Date(b.dueDate).getTime());
@@ -351,18 +401,37 @@ export const StudentPortal: React.FC = () => {
                   />
                   <GraduationCap className="student-portal-banner-fallback hidden w-8 h-8 text-cyan-400 stroke-[2.5]" />
                 </div>
-                <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-white/5 backdrop-blur-md border border-white/10 text-xs font-black text-cyan-300">
-                  <Sparkles className="w-4 h-4" />
-                  <span>كود الطالب الموحد: {currentUser.studentCode || `SEA-${currentUser.id.slice(-6).toUpperCase()}`}</span>
+                <div className="flex flex-wrap items-center gap-2">
+                  <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-cyan-500/10 backdrop-blur-md border border-cyan-400/30 text-xs font-black text-cyan-300">
+                    <Sparkles className="w-4 h-4 text-cyan-400" />
+                    <span>الكود الرسمي المعتمد: {currentUser.officialStudentId || currentUser.studentCode || `SEA-${currentUser.id.slice(-6).toUpperCase()}`}</span>
+                  </div>
+
+                  {currentUser.fileRegistrationNumber && (
+                    <div className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-emerald-500/20 border border-emerald-400/40 text-xs font-black text-emerald-300">
+                      <span>رقم الملف المربوط: {currentUser.fileRegistrationNumber}</span>
+                    </div>
+                  )}
                 </div>
               </div>
               <div>
                 <h2 className="text-4xl md:text-5xl font-black tracking-tight text-white mb-2">
                   مرحباً بك، <span className="text-transparent bg-clip-text bg-gradient-to-l from-cyan-400 to-emerald-400">{currentUser.fourPartName?.split(' ')[0] || currentUser.name}</span> 👋
                 </h2>
-                <p className="text-slate-300 text-sm max-w-2xl leading-relaxed font-medium">
+                <p className="text-slate-300 text-sm max-w-2xl leading-relaxed font-medium mb-3">
                   مرحباً بك في منظومة الطلاب الذكية SEA. حيث يلتقي التميز الأكاديمي بالتطور التقني. تابع مسارك، نظم وقتك، واختبر قدراتك في بيئة تعليمية لا تضاهى.
                 </p>
+
+                {/* Anti-Leak Security Warning Card */}
+                <div className="p-3 rounded-2xl bg-slate-950/60 border border-cyan-500/30 text-xs space-y-1 max-w-2xl">
+                  <div className="flex items-center gap-1.5 font-black text-cyan-400 text-[11px]">
+                    <ShieldAlert className="w-4 h-4 text-cyan-400 shrink-0" />
+                    <span>تنبيه أمني هام بشأن حماية فيديوهاتك وحصصك:</span>
+                  </div>
+                  <p className="text-[11px] text-slate-300 leading-relaxed font-medium">
+                    كودك المعتمد (<strong>{currentUser.officialStudentId || currentUser.studentCode}</strong>) مطبوع ومدمج كبصمة رقمية مشفرة في فيديوهاتك. يمنع منعاً باتاً أي تصوير أو تسريب للشاشة لتجنب الحظر والتجميد المباشر.
+                  </p>
+                </div>
               </div>
             </div>
 

@@ -22,6 +22,7 @@ import {
 } from 'lucide-react';
 import { useApp } from '../../context/AppContext';
 import { BankQuestion, QuestionType } from '../../types';
+import { AntiLeakWatermark } from '../AntiLeakWatermark';
 
 interface StudentQuestionBankViewProps {
   onBack?: () => void;
@@ -127,7 +128,8 @@ export const StudentQuestionBankView: React.FC<StudentQuestionBankViewProps> = (
   };
 
   return (
-    <div className="space-y-6 animate-fade-in text-right" dir="rtl" onContextMenu={(e) => e.preventDefault()}>
+    <div className="space-y-6 animate-fade-in text-right relative min-h-[500px]" dir="rtl" onContextMenu={(e) => e.preventDefault()}>
+      <AntiLeakWatermark mode="general" />
       
       {/* Header Banner */}
       <div className="relative overflow-hidden rounded-[32px] p-6 sm:p-8 bg-gradient-to-r from-slate-900 via-indigo-950 to-slate-900 border border-white/10 shadow-2xl text-white">

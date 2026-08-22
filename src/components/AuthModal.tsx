@@ -141,10 +141,15 @@ export const AuthModal: React.FC = () => {
         {/* OPTION 1: LOGIN (For Admins, Instructors, & Pre-registered Students Only) */}
         {activeOption === 'login' && (
           <div className="space-y-4 animate-fade-in">
-            <div className="p-3 rounded-2xl bg-slate-950/60 border border-slate-800/80 text-xs text-slate-300 flex items-start gap-2.5">
-              <ShieldCheck className="w-4 h-4 text-cyan-400 shrink-0 mt-0.5" />
-              <div>
-                <span className="font-black text-cyan-300">تسجيل الدخول المخصص:</span> متاح فقط لمسؤولي الإدارة العليا، والمعلمين وأصحاب المنصات، والطلاب ذوي الحسابات المعتمدة مسبقاً في النظام.
+            <div className="p-3.5 rounded-2xl bg-cyan-950/30 border border-cyan-500/30 text-xs text-slate-300 space-y-2">
+              <div className="flex items-start gap-2.5">
+                <ShieldCheck className="w-4 h-4 text-cyan-400 shrink-0 mt-0.5" />
+                <div>
+                  <span className="font-black text-cyan-300">تسجيل الدخول المعتمد:</span> متاح للطلاب المعتمدة حساباتهم بعد المراجعة الإدارية، والمعلمين، ومسؤولي الإدارة.
+                </div>
+              </div>
+              <div className="text-[11px] text-slate-400 leading-relaxed border-t border-cyan-900/40 pt-2">
+                ℹ️ <strong className="text-slate-200">تنويه هام:</strong> الحسابات الجديدة تظل قيد المراجعة الإدارية والتدقيق (خلال 1 - 48 ساعة). في حال رفض الحساب من قبل الإدارة لا يمكن تسجيل الدخول إليه نهائياً.
               </div>
             </div>
 
@@ -218,38 +223,45 @@ export const AuthModal: React.FC = () => {
           </div>
         )}
 
-        {/* OPTION 2: CREATE NEW ACCOUNT (Intelligent Comprehensive Admission & Enrollment) */}
+        {/* OPTION 2: CREATE NEW ACCOUNT (Clear, Direct Registration Overview) */}
         {activeOption === 'create_choice' && (
           <div className="space-y-5 animate-fade-in text-right">
-            <div className="p-5 rounded-3xl bg-gradient-to-br from-emerald-950/40 via-slate-900 to-teal-950/30 border border-emerald-500/30 space-y-4">
-              <div className="w-12 h-12 rounded-2xl bg-emerald-500/20 border border-emerald-500/30 flex items-center justify-center text-emerald-400 shadow-inner">
-                <UserPlus className="w-6 h-6" />
+            <div className="p-5 rounded-3xl bg-slate-950/80 border border-slate-800 space-y-4">
+              <div className="flex items-center gap-3">
+                <div className="w-11 h-11 rounded-2xl bg-emerald-500/20 border border-emerald-500/30 flex items-center justify-center text-emerald-400">
+                  <UserPlus className="w-6 h-6" />
+                </div>
+                <div>
+                  <h4 className="text-base font-black text-white">
+                    إنشاء حساب طالب جديد
+                  </h4>
+                  <p className="text-xs text-slate-400">
+                    خطوات سهلة ومباشرة لتقديم طلب الانضمام للمنظومة
+                  </p>
+                </div>
               </div>
 
-              <div>
-                <h4 className="text-base font-black text-white flex items-center gap-2">
-                  إنشاء حساب طالب جديد بالمنظومة الشاملة
-                  <span className="text-[10px] bg-emerald-500/20 text-emerald-300 font-bold px-2 py-0.5 rounded-full border border-emerald-500/30">
-                    القبول الموحد
-                  </span>
-                </h4>
-                <p className="text-xs text-slate-300 leading-relaxed mt-1.5">
-                  انضم إلى المنظومة المركزية الأكثر ذكاءً. يتضمن التسجيل إدخال الاسم الرباعي الموثق، أرقام هواتف الطالب وولي الأمر، التحقق برمز البريد (OTP)، وإصدار كود الطالب الموحد (SEA-ID).
-                </p>
-              </div>
-
-              <div className="space-y-2 pt-2 border-t border-slate-800 text-xs text-slate-300 font-medium">
-                <div className="flex items-center gap-2">
-                  <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />
-                  <span>بيانات موحدة مستقلة غير مقيدة بأي معلم محدد.</span>
+              {/* Clear Straightforward Steps Overview */}
+              <div className="p-4 rounded-2xl bg-slate-900 border border-slate-800/80 space-y-2.5 text-xs text-slate-300">
+                <div className="flex items-start gap-2.5">
+                  <span className="w-5 h-5 rounded-full bg-cyan-500/20 text-cyan-300 flex items-center justify-center text-[10px] font-bold shrink-0 mt-0.5">1</span>
+                  <span><strong>البيانات الأساسية:</strong> كتابة الاسم الرباعي الرسمي، وأرقام هواتف التواصل (الطالب وولي الأمر).</span>
                 </div>
-                <div className="flex items-center gap-2">
-                  <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />
-                  <span>تأكيد الإيميل برمز سري حقيقي (OTP) موصول بـ Google SMTP.</span>
+                <div className="flex items-start gap-2.5">
+                  <span className="w-5 h-5 rounded-full bg-cyan-500/20 text-cyan-300 flex items-center justify-center text-[10px] font-bold shrink-0 mt-0.5">2</span>
+                  <span><strong>البريد وكلمة المرور:</strong> إدخال بريد إلكتروني احتياطي (Gmail) وكلمة مرور قوية لتسجيل دخولك بأمان.</span>
                 </div>
-                <div className="flex items-center gap-2">
-                  <Fingerprint className="w-4 h-4 text-cyan-400 shrink-0" />
-                  <span>حماية من الحسابات المشتركة وربط أمني بجهاز الطالب المعتمد.</span>
+                <div className="flex items-start gap-2.5">
+                  <span className="w-5 h-5 rounded-full bg-cyan-500/20 text-cyan-300 flex items-center justify-center text-[10px] font-bold shrink-0 mt-0.5">3</span>
+                  <span><strong>التحقق البشري:</strong> الإجابة عن سؤال بسيط للتأكد من بشرية المستخدم.</span>
+                </div>
+                <div className="flex items-start gap-2.5">
+                  <span className="w-5 h-5 rounded-full bg-cyan-500/20 text-cyan-300 flex items-center justify-center text-[10px] font-bold shrink-0 mt-0.5">4</span>
+                  <span><strong>الصورة الشخصية:</strong> التقاط صورة واضحة لتأكيد هويتك وضمان استخدامك الشخصي وحماية المحتوى.</span>
+                </div>
+                <div className="flex items-start gap-2.5">
+                  <span className="w-5 h-5 rounded-full bg-emerald-500/20 text-emerald-300 flex items-center justify-center text-[10px] font-bold shrink-0 mt-0.5">5</span>
+                  <span><strong>المراجعة والاعتماد:</strong> مراجعة يدوية من الإدارة (1 - 48 ساعة)، وعند القبول يصدر لك معرّف (ID) فريد وخاص بك.</span>
                 </div>
               </div>
 
@@ -257,9 +269,9 @@ export const AuthModal: React.FC = () => {
                 type="button"
                 id="btn-launch-full-signup"
                 onClick={handleGoToComprehensiveSignup}
-                className="w-full py-3.5 rounded-2xl font-black text-sm bg-gradient-to-r from-emerald-400 via-teal-500 to-cyan-500 hover:from-emerald-300 hover:to-cyan-400 text-slate-950 shadow-lg shadow-emerald-500/20 transition-all flex items-center justify-center gap-2 cursor-pointer font-black"
+                className="w-full py-3.5 rounded-2xl font-black text-sm bg-gradient-to-r from-emerald-500 via-teal-500 to-cyan-500 hover:from-emerald-400 hover:to-cyan-400 text-slate-950 shadow-lg shadow-emerald-500/20 transition-all flex items-center justify-center gap-2 cursor-pointer"
               >
-                <span>الانتقال لنظام التسجيل الذكي وإدخال البيانات</span>
+                <span>البدء في تسجيل البيانات الآن</span>
                 <ArrowRight className="w-4 h-4 rotate-180" />
               </button>
             </div>

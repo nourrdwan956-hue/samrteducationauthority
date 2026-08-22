@@ -164,7 +164,17 @@ interface AppContextType {
   lessonQuestions: LessonQuestion[];
   updateUserAccountStatus: (
     userId: string,
-    status: "verified" | "pending_verification" | "pending_review" | "active" | "suspended" | "banned",
+    status: "verified" | "pending_verification" | "pending_review" | "active" | "suspended" | "banned" | "rejected",
+    reason?: string
+  ) => void;
+  deleteUserProfile: (userId: string, reason?: string) => void;
+  updateStudentAdmissionData: (
+    userId: string,
+    data: {
+      seaSequenceNumber?: number;
+      officialStudentId?: string;
+      fileRegistrationNumber?: string;
+    },
   ) => void;
 
   // CRUD Operations
@@ -459,8 +469,18 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({
 
   // Stored state
   const [currentUser, setCurrentUser] = useState<User | null>(() => {
-    const saved = localStorage.getItem("sea_current_user");
-    return saved ? JSON.parse(saved) : null;
+    try {
+      const saved = localStorage.getItem("sea_current_user");
+      if (!saved) return null;
+      const parsed: User = JSON.parse(saved);
+      if (parsed.role === "student" && parsed.accountStatus !== "verified" && parsed.accountStatus !== "active") {
+        localStorage.removeItem("sea_current_user");
+        return null;
+      }
+      return parsed;
+    } catch {
+      return null;
+    }
   });
 
   const [platforms, setPlatforms] = useState<EducationalPlatform[]>(() => {
@@ -1151,12 +1171,42 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({
     );
 
     if (matchedProfile) {
-      if (matchedProfile.accountStatus === "suspended") {
-        return {
-          success: false,
-          message: "هذا الحساب موقوف حالياً من قبل قسم شؤون الطلاب المركزي.",
-        };
+      if (matchedProfile.role === "student") {
+        if (matchedProfile.accountStatus === "rejected") {
+          const reasonText = matchedProfile.accountStatusReason || matchedProfile.rejectionReason;
+          return {
+            success: false,
+            message: reasonText
+              ? `عفواً، تم رفض وإلغاء قيدك من قبل إدارة القبول وشؤون الطلاب.\n\nسبب الرفض/الحذف الإداري:\n"${reasonText}"`
+              : "عفواً، تم رفض طلب قيدك وانضمامك من قبل قسم شؤون الطلاب والقبول المركزي. يُمنع تسجيل الدخول بهذا الحساب.",
+          };
+        }
+        if (matchedProfile.accountStatus === "suspended") {
+          const reasonText = matchedProfile.accountStatusReason;
+          return {
+            success: false,
+            message: reasonText
+              ? `عفواً، تم تجميد حسابك وإيقاف دخولك إلى المنصة بقرار إداري.\n\nسبب التجميد الإداري:\n"${reasonText}"`
+              : "عفواً، تم تجميد حسابك وإيقاف الوصول إلى لوحة التحكم بقرار من إدارة شؤون الطلاب والانضباط.",
+          };
+        }
+        if (matchedProfile.accountStatus === "banned") {
+          const reasonText = matchedProfile.accountStatusReason;
+          return {
+            success: false,
+            message: reasonText
+              ? `عفواً، تم حظر حسابك نهائياً بقرار من إدارة المنصة.\n\nسبب الحظر الإداري:\n"${reasonText}"`
+              : "عفواً، تم حظر حسابك نهائياً من الوصول إلى المنظومة بقرار إداري.",
+          };
+        }
+        if (matchedProfile.accountStatus !== "verified" && matchedProfile.accountStatus !== "active") {
+          return {
+            success: false,
+            message: `عفواً، حساب الطالب (${matchedProfile.fourPartName || matchedProfile.name}) ما زال قيد المراجعة والتدقيق الإداري. يُرجى الانتظار لحين اعتماد وتفعيل الحساب رسمياً من إدارة شؤون الطلاب.`,
+          };
+        }
       }
+
       setCurrentUser(matchedProfile);
       if (matchedProfile.role === "teacher" && matchedProfile.platformId) {
         setSelectedPlatformId(matchedProfile.platformId);
@@ -1169,67 +1219,17 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({
       setIsAuthModalOpen(false);
       addToast(
         "success",
-        `أهلاً بك مجدداً يا ${matchedProfile.name}`,
-        "تم تسجيل الدخول بنجاح إلى حسابك الموحد.",
+        `🎉 أهلاً بك! تم تسجيل الدخول بنجاح يا ${matchedProfile.fourPartName || matchedProfile.name}`,
+        "تم توجيهك مباشرة إلى بوابة الطالب الرسمية.",
       );
       return { success: true };
     }
 
-    // 4. Check Demo Student / Regular Student Users (Auto-Register if not exists)
-    if (
-      cleanEmail === DEMO_STUDENT_USER.email.toLowerCase() ||
-      cleanEmail.includes("student") ||
-      cleanEmail === "student@sea.com"
-    ) {
-      const generatedCode = `SEA-2026-${Math.floor(10000 + Math.random() * 90000)}`;
-      const studentUser: User = {
-        id: "student_" + Math.random().toString(36).substring(2, 9),
-        email: cleanEmail,
-        name: cleanEmail.split("@")[0] || "طالب متميز",
-        role: "student",
-        phone: "01012345678",
-        gradeLevel: "الصف الثالث الثانوي",
-        studentCode: generatedCode,
-        fourPartName: "أحمد محمود إبراهيم التوني",
-        nationalId: "30501010101234",
-        guardianPhone: "01198765432",
-        governorate: "القاهرة",
-        schoolName: "مدرسة المتفوقين الثانوية",
-        academicSection: "science_bio",
-        educationSystem: "general_arabic",
-        isEmailVerified: true,
-        accountStatus: "pending_review",
-        enrolledCourseIds: [],
-        walletBalance: 0,
-        createdAt: new Date().toISOString().split("T")[0],
-      };
-
-      // Save permanently to userProfiles so their progress is saved!
-      setUserProfiles((prev) => {
-        const filtered = prev.filter(
-          (p) => p.email.toLowerCase() !== studentUser.email.toLowerCase(),
-        );
-        const updated = [studentUser, ...filtered];
-        localStorage.setItem("sea_user_profiles", JSON.stringify(updated));
-        return updated;
-      });
-      syncUserProfileToSupabase(studentUser).catch(console.warn);
-
-      setCurrentUser(studentUser);
-      setCurrentView("student_portal");
-      setIsAuthModalOpen(false);
-      addToast(
-        "success",
-        `مرحباً بك يا ${studentUser.name}`,
-        "تم دخول المنظومة واستخراج كود الطالب المعتمد.",
-      );
-      return { success: true };
-    }
-
+    // 4. Return rejection for unapproved or non-existent student accounts
     return {
       success: false,
       message:
-        "بيانات الدخول غير مسجلة في المنظومة. تأكد من البريد أو كود الطالب.",
+        "بيانات الدخول غير مسجلة أو غير معتمدة بعد في المنظومة. إذا كنت قد قدمت طلب تسجيل مؤخراً، فحسابك ما زال قيد المراجعة الإدارية.",
     };
   };
 
@@ -1241,6 +1241,117 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({
     gradeLevel?: string,
     extraProfileData?: Partial<User>,
   ): Promise<{ success: boolean; message?: string; user?: User }> => {
+    const cleanEmail = email.trim().toLowerCase();
+    const cleanPhone = phone?.replace(/\D/g, "") || "";
+    const cleanGuardianPhone = extraProfileData?.guardianPhone?.replace(/\D/g, "") || "";
+    const cleanMotherPhone = extraProfileData?.motherPhone?.replace(/\D/g, "") || "";
+    const cleanNationalId = extraProfileData?.nationalId?.trim() || "";
+
+    // Helper for Egyptian phone comparison
+    const normalizeDigits = (pStr?: string) => {
+      if (!pStr) return "";
+      const d = pStr.replace(/\D/g, "");
+      if (d.startsWith("201") && d.length === 12) return "0" + d.substring(2);
+      return d;
+    };
+
+    const studentP = normalizeDigits(cleanPhone);
+    const parentP = normalizeDigits(cleanGuardianPhone);
+    const motherP = normalizeDigits(cleanMotherPhone);
+
+    // STRICT DUPLICATE & BAN / REJECTION CHECK: PHONE NUMBER
+    const findUserByPhone = (targetDigits: string) => {
+      if (!targetDigits || targetDigits.length < 8) return null;
+      return userProfiles.find((u) => {
+        const uPhone = normalizeDigits(u.phone);
+        const uGuardian = normalizeDigits(u.guardianPhone);
+        const uMother = normalizeDigits(u.motherPhone);
+        return (
+          (uPhone && uPhone === targetDigits) ||
+          (uGuardian && uGuardian === targetDigits) ||
+          (uMother && uMother === targetDigits)
+        );
+      });
+    };
+
+    const existingStudentPhoneUser = studentP ? findUserByPhone(studentP) : null;
+    if (existingStudentPhoneUser) {
+      if (existingStudentPhoneUser.accountStatus === 'banned' || existingStudentPhoneUser.accountStatus === 'rejected') {
+        return {
+          success: false,
+          message: `عفواً، رقم هاتف الطالب المدخل (${phone}) مرتبط بحساب تم رفضه سابقاً أو حظره بقرار إداري. يُمنع إعادة التسجيل بنفس البيانات.`,
+        };
+      }
+      return {
+        success: false,
+        message: `عفواً، رقم هاتف الطالب المدخل (${phone}) مسجل مسبقاً بحساب آخر على المنظومة (سواء كان معتمداً أو قيد المراجعة). يُمنع إنشاء أكثر من حساب بنفس رقم الهاتف نهائياً.`,
+      };
+    }
+
+    const existingParentPhoneUser = parentP ? findUserByPhone(parentP) : null;
+    if (existingParentPhoneUser) {
+      if (existingParentPhoneUser.accountStatus === 'banned' || existingParentPhoneUser.accountStatus === 'rejected') {
+        return {
+          success: false,
+          message: `عفواً، رقم هاتف ولي الأمر المدخل مرتبط بحساب تم رفضه سابقاً أو حظره بقرار إداري. يُمنع إعادة التسجيل بنفس البيانات.`,
+        };
+      }
+      return {
+        success: false,
+        message: `عفواً، رقم هاتف ولي الأمر المدخل (${extraProfileData?.guardianPhone}) مسجل مسبقاً بحساب آخر على المنظومة (سواء كان معتمداً أو قيد المراجعة). يُمنع إنشاء أكثر من حساب بنفس رقم الهاتف.`,
+      };
+    }
+
+    const existingMotherPhoneUser = motherP ? findUserByPhone(motherP) : null;
+    if (existingMotherPhoneUser) {
+      if (existingMotherPhoneUser.accountStatus === 'banned' || existingMotherPhoneUser.accountStatus === 'rejected') {
+        return {
+          success: false,
+          message: "عفواً، رقم هاتف الأم المدخل مرتبط بحساب تم رفضه سابقاً أو حظره بقرار إداري. يُمنع إعادة التسجيل.",
+        };
+      }
+      return {
+        success: false,
+        message: "عفواً، رقم هاتف الأم المدخل مسجل مسبقاً بحساب آخر على المنظومة.",
+      };
+    }
+
+    // STRICT DUPLICATE CHECK: EMAIL
+    const existingEmailUser = userProfiles.find(
+      (u) => u.email.trim().toLowerCase() === cleanEmail
+    );
+    if (existingEmailUser) {
+      if (existingEmailUser.accountStatus === 'banned' || existingEmailUser.accountStatus === 'rejected') {
+        return {
+          success: false,
+          message: `عفواً، البريد الإلكتروني (${email}) مرتبط بحساب تم رفضه سابقاً أو حظره بقرار إداري. يُمنع إعادة التسجيل بنفس البريد.`,
+        };
+      }
+      return {
+        success: false,
+        message: `عفواً، البريد الإلكتروني (${email}) مسجل مسبقاً بحساب طالب آخر على المنظومة. لا يُسمح بإنشاء حسابين بنفس البريد.`,
+      };
+    }
+
+    // STRICT DUPLICATE CHECK: NATIONAL ID
+    if (cleanNationalId && cleanNationalId.length >= 10) {
+      const existingNatUser = userProfiles.find(
+        (u) => u.nationalId && u.nationalId.trim() === cleanNationalId
+      );
+      if (existingNatUser) {
+        if (existingNatUser.accountStatus === 'banned' || existingNatUser.accountStatus === 'rejected') {
+          return {
+            success: false,
+            message: "عفواً، الرقم القومي المدخل مرتبط بحساب تم رفضه سابقاً أو حظره بقرار إداري. يُمنع إعادة التسجيل بنفس الرقم القومي.",
+          };
+        }
+        return {
+          success: false,
+          message: "عفواً، الرقم القومي المدخل مسجل مسبقاً بحساب طالب آخر على المنظومة.",
+        };
+      }
+    }
+
     // Generate unique unforgeable SEA Student Code
     const generatedCode =
       extraProfileData?.studentCode ||
@@ -1248,14 +1359,13 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({
 
     const newUser: User = {
       id: "student_" + Date.now(),
-      email: email.trim().toLowerCase(),
+      email: cleanEmail,
       name: name.trim(),
       fourPartName: extraProfileData?.fourPartName || name.trim(),
-      role: "student",
       phone: phone?.trim() || "",
       gradeLevel: gradeLevel || "الصف الثالث الثانوي",
       studentCode: generatedCode,
-      nationalId: extraProfileData?.nationalId || "",
+      nationalId: cleanNationalId,
       guardianPhone: extraProfileData?.guardianPhone || "",
       guardianJob: extraProfileData?.guardianJob || "",
       guardianRelation: extraProfileData?.guardianRelation || "father",
@@ -1266,7 +1376,6 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({
       academicSection: extraProfileData?.academicSection || "general",
       educationSystem: extraProfileData?.educationSystem || "general_arabic",
       isEmailVerified: extraProfileData?.isEmailVerified ?? true,
-      accountStatus: "pending_review",
       deviceFingerprint:
         extraProfileData?.deviceFingerprint ||
         `SEA-DEV-${Math.random().toString(36).substring(2, 9).toUpperCase()}`,
@@ -1277,14 +1386,13 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({
       walletBalance: 0,
       createdAt: new Date().toISOString().split("T")[0],
       ...extraProfileData,
+      // SECURITY HARDENING: Role and Admission Stage CANNOT be bypassed by any hacker or tampered payload
+      role: "student",
+      accountStatus: "pending_review",
     };
 
-    // Save to active user session
-    setCurrentUser(newUser);
-
-    // Update profiles state and local storage immediately
+    // Save to userProfiles array state and local storage immediately
     setUserProfiles((prev) => {
-      // Prevent duplicates if already present
       const filtered = prev.filter(
         (p) => p.email.toLowerCase() !== newUser.email.toLowerCase(),
       );
@@ -1293,16 +1401,27 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({
       return updated;
     });
 
+    // Save pending badge for home screen notification
+    try {
+      localStorage.setItem(
+        "sea_pending_student",
+        JSON.stringify({
+          name: newUser.fourPartName || newUser.name,
+          email: newUser.email,
+          studentCode: generatedCode,
+          submittedAt: new Date().toISOString(),
+          status: "pending_review",
+        })
+      );
+    } catch (e) {
+      console.warn("localStorage error", e);
+    }
+
     // Background Supabase Sync
     syncUserProfileToSupabase(newUser).catch(console.warn);
 
-    setCurrentView("student_portal");
+    // DO NOT set currentUser or redirect to student portal! Student remains unapproved until admin verification.
     setIsAuthModalOpen(false);
-    addToast(
-      "success",
-      `أهلاً بك في المنظومة التعليمية يا ${newUser.fourPartName?.split(" ")[0] || newUser.name}`,
-      `تم إنشاء حسابك وتخصيص كود الطالب المعتمد (${generatedCode}).`,
-    );
     return { success: true, user: newUser };
   };
 
@@ -1317,10 +1436,45 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({
 
   const updateUserAccountStatus = (
     userId: string,
-    status: "verified" | "pending_verification" | "pending_review" | "active" | "suspended" | "banned",
+    status: "verified" | "pending_verification" | "pending_review" | "active" | "suspended" | "banned" | "rejected",
+    reason?: string,
   ) => {
+    let assignedInfo: { seq: number; officialId: string; fileId: string } | null = null;
+
     setUserProfiles((prev) => {
-      const updated = prev.map((u) => (u.id === userId ? { ...u, accountStatus: status } : u));
+      // Find max existing sequence number
+      const existingSeqs = prev.map((u) => u.seaSequenceNumber || 0).filter((n) => typeof n === "number" && !isNaN(n));
+      const maxSeq = existingSeqs.length > 0 ? Math.max(...existingSeqs, 0) : 0;
+      const nextSeq = maxSeq + 1;
+      const seqFormatted = String(nextSeq).padStart(4, "0");
+
+      const updated = prev.map((u) => {
+        if (u.id === userId) {
+          const isApproval = status === "active" || status === "verified";
+          const currentSeq = u.seaSequenceNumber || (isApproval ? nextSeq : undefined);
+          const formattedSeq = currentSeq ? String(currentSeq).padStart(4, "0") : seqFormatted;
+          const officialId = u.officialStudentId || (isApproval ? `STU-2026-${formattedSeq}` : undefined);
+          const fileId = u.fileRegistrationNumber || (isApproval ? `FILE-2026-${formattedSeq}` : undefined);
+
+          if (isApproval && currentSeq && officialId && fileId) {
+            assignedInfo = { seq: currentSeq, officialId, fileId };
+          }
+
+          return {
+            ...u,
+            accountStatus: status,
+            accountStatusReason: reason || (status === 'active' || status === 'verified' ? undefined : u.accountStatusReason),
+            ...(status === 'rejected' && reason ? { rejectionReason: reason } : {}),
+            ...(status === 'suspended' ? { frozenAt: new Date().toISOString(), frozenBy: 'الإدارة المركزية' } : {}),
+            ...(currentSeq ? { seaSequenceNumber: currentSeq } : {}),
+            ...(officialId ? { officialStudentId: officialId } : {}),
+            ...(fileId ? { fileRegistrationNumber: fileId } : {}),
+            ...(isApproval && !u.admittedAt ? { admittedAt: new Date().toISOString() } : {}),
+          };
+        }
+        return u;
+      });
+
       try {
         localStorage.setItem("sea_user_profiles", JSON.stringify(updated));
       } catch (e) {
@@ -1328,22 +1482,119 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({
       }
       return updated;
     });
+
     if (currentUser && currentUser.id === userId) {
-      setCurrentUser((prev) => (prev ? { ...prev, accountStatus: status } : null));
+      setCurrentUser((prev) => {
+        if (!prev) return null;
+        return {
+          ...prev,
+          accountStatus: status,
+          accountStatusReason: reason || (status === 'active' || status === 'verified' ? undefined : prev.accountStatusReason),
+          ...(status === 'rejected' && reason ? { rejectionReason: reason } : {}),
+          ...(status === 'suspended' ? { frozenAt: new Date().toISOString(), frozenBy: 'الإدارة المركزية' } : {}),
+          ...(assignedInfo ? {
+            seaSequenceNumber: assignedInfo.seq,
+            officialStudentId: assignedInfo.officialId,
+            fileRegistrationNumber: assignedInfo.fileId,
+          } : {}),
+        };
+      });
     }
-    addToast(
-      "success",
-      "تم تحديث حالة الحساب بنجاح",
-      `تم تغيير حالة الحساب إلى: ${
-        status === "active" || status === "verified"
-          ? "نشط ومفعل"
-          : status === "pending_review"
-          ? "قيد المراجعة"
-          : status === "suspended"
-          ? "موقوف مؤقتاً"
-          : "محظور"
-      }`,
-    );
+
+    const toastDesc = assignedInfo
+      ? `تم تفعيل القيد واعتماد كود الطالب الرسمي: ${assignedInfo.officialId}`
+      : `تم تغيير حالة الحساب إلى: ${
+          status === "active" || status === "verified"
+            ? "مفعل ومقبول رسمياً"
+            : status === "pending_review"
+            ? "قيد المراجعة والتدقيق"
+            : status === "suspended"
+            ? "مجمد وموقوف مؤقتاً"
+            : status === "rejected"
+            ? "مرفوض نهائياً"
+            : "محظور"
+        }${reason ? ` (السبب: ${reason})` : ''}`;
+
+    addToast("success", "تم تحديث حالة الحساب بنجاح", toastDesc);
+  };
+
+  const updateStudentAdmissionData = (
+    userId: string,
+    data: {
+      seaSequenceNumber?: number;
+      officialStudentId?: string;
+      fileRegistrationNumber?: string;
+    },
+  ) => {
+    setUserProfiles((prev) => {
+      const updated = prev.map((u) => {
+        if (u.id === userId) {
+          const newSeq = data.seaSequenceNumber ?? u.seaSequenceNumber;
+          const formattedSeq = newSeq ? String(newSeq).padStart(4, "0") : "0001";
+          return {
+            ...u,
+            seaSequenceNumber: newSeq,
+            officialStudentId: data.officialStudentId || u.officialStudentId || `STU-2026-${formattedSeq}`,
+            fileRegistrationNumber: data.fileRegistrationNumber || u.fileRegistrationNumber || `FILE-2026-${formattedSeq}`,
+          };
+        }
+        return u;
+      });
+      try {
+        localStorage.setItem("sea_user_profiles", JSON.stringify(updated));
+      } catch (e) {
+        console.error(e);
+      }
+      return updated;
+    });
+
+    if (currentUser && currentUser.id === userId) {
+      setCurrentUser((prev) => {
+        if (!prev) return null;
+        const newSeq = data.seaSequenceNumber ?? prev.seaSequenceNumber;
+        const formattedSeq = newSeq ? String(newSeq).padStart(4, "0") : "0001";
+        return {
+          ...prev,
+          seaSequenceNumber: newSeq,
+          officialStudentId: data.officialStudentId || prev.officialStudentId || `STU-2026-${formattedSeq}`,
+          fileRegistrationNumber: data.fileRegistrationNumber || prev.fileRegistrationNumber || `FILE-2026-${formattedSeq}`,
+        };
+      });
+    }
+
+    addToast("success", "تم تحديث رقم الملف والكود الرسمي للطالب بنجاح");
+  };
+
+  const deleteUserProfile = (userId: string, reason?: string) => {
+    const targetUser = userProfiles.find((u) => u.id === userId);
+    const targetName = targetUser?.fourPartName || targetUser?.name || 'الطالب';
+
+    setUserProfiles((prev) => {
+      const updated = prev.map((u) => {
+        if (u.id === userId) {
+          return {
+            ...u,
+            accountStatus: 'rejected' as const,
+            accountStatusReason: reason || u.accountStatusReason || 'تم مسح وإلغاء قيد الحساب من المنظومة بقرار إداري.',
+            rejectionReason: reason || u.rejectionReason || 'تم مسح وإلغاء قيد الحساب بقرار إداري.',
+          };
+        }
+        return u;
+      });
+      try {
+        localStorage.setItem("sea_user_profiles", JSON.stringify(updated));
+      } catch (e) {
+        console.error(e);
+      }
+      return updated;
+    });
+
+    if (currentUser && currentUser.id === userId) {
+      setCurrentUser(null);
+      setCurrentView("home");
+    }
+
+    addToast("success", "تم إلغاء وحذف قيد الطالب نهائياً", `تم مسح قيد الطالب "${targetName}" وإشعاره بسبب الإلغاء.`);
   };
 
   // Platform Actions (with background Supabase sync)
@@ -3507,6 +3758,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({
         supportTickets,
         userProfiles,
         updateUserAccountStatus,
+        updateStudentAdmissionData,
+        deleteUserProfile,
 
         createPlatform,
         updatePlatform,

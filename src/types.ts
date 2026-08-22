@@ -31,8 +31,22 @@ export interface User {
     | "azhar"
     | "international_ig_sat"; // عربي / لغات / أزهر / دولي
   studentCode?: string; // e.g. SEA-2026-98421
+  officialStudentId?: string; // e.g. STU-2026-0001 (auto-assigned upon admin admission)
+  seaSequenceNumber?: number; // e.g. 1, 2, 3... (sequential roll number e.g. #0001)
+  fileRegistrationNumber?: string; // e.g. FILE-2026-0001 (linked file archive index)
+  admittedAt?: string; // ISO date when admitted by central administration
   isEmailVerified?: boolean;
-  accountStatus?: "verified" | "pending_verification" | "pending_review" | "active" | "suspended" | "banned";
+  accountStatus?: "verified" | "pending_verification" | "pending_review" | "active" | "suspended" | "banned" | "rejected";
+  accountStatusReason?: string;
+  frozenAt?: string;
+  frozenBy?: string;
+  gpsLocation?: {
+    lat: number;
+    lng: number;
+    accuracy?: number;
+    capturedAt?: string;
+  };
+  rejectionReason?: string;
   deviceFingerprint?: string;
   primaryDeviceId?: string;
   secondaryDeviceId?: string;

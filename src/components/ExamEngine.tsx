@@ -3,6 +3,7 @@ import confetti from 'canvas-confetti';
 import { useApp } from '../context/AppContext';
 import { Exam, ExamSubmission, Question } from '../types';
 import { isEnglishText, getOptionPrefix } from '../utils/langUtils';
+import { AntiLeakWatermark } from './AntiLeakWatermark';
 import {
   initScreenRecordingProtection,
   subscribeToScreenProtection,
@@ -1235,15 +1236,7 @@ export const ExamEngine: React.FC<ExamEngineProps> = ({ exam: propExam, onExit }
       ref={containerRef}
     >
       {/* Background Anti-Leak Watermark in Active Session */}
-      {inActiveExamSession && (
-        <div className="fixed inset-0 pointer-events-none z-0 opacity-[0.03] dark:opacity-[0.04] flex flex-wrap items-center justify-center gap-16 overflow-hidden select-none" aria-hidden="true">
-          {Array.from({ length: 18 }).map((_, i) => (
-            <div key={i} className="transform -rotate-12 text-sm font-black font-mono text-slate-500 whitespace-nowrap">
-              🔒 {currentUser?.name || currentUser?.email || 'STUDENT_SESSION'} • {exam.title} • {exam.id.slice(0, 8)}
-            </div>
-          ))}
-        </div>
-      )}
+      {inActiveExamSession && <AntiLeakWatermark mode="exam" />}
 
       {/* Interactive Concept & Formula Sheet Modal */}
       {isConceptSheetOpen && (

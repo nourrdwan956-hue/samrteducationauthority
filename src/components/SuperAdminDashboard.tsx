@@ -44,6 +44,8 @@ import {
   Printer,
   Camera,
   AlertCircle,
+  Clock,
+  ShieldAlert,
 } from 'lucide-react';
 
 export const SuperAdminDashboard: React.FC = () => {
@@ -65,6 +67,8 @@ export const SuperAdminDashboard: React.FC = () => {
     deleteSupportTicket,
     userProfiles,
     updateUserAccountStatus,
+    updateStudentAdmissionData,
+    deleteUserProfile,
     depositRequests,
     paymentSettings,
     updateDepositRequestStatus,
@@ -99,9 +103,17 @@ export const SuperAdminDashboard: React.FC = () => {
   >('summary');
   const [searchTerm, setSearchTerm] = useState('');
   const [studentSearchTerm, setStudentSearchTerm] = useState('');
+  const [studentStatusFilter, setStudentStatusFilter] = useState<'pending_review' | 'all' | 'active' | 'suspended_banned'>('pending_review');
   const [studentGradeFilter, setStudentGradeFilter] = useState('all');
   const [studentGovFilter, setStudentGovFilter] = useState('all');
   const [selectedStudentProfile, setSelectedStudentProfile] = useState<User | null>(null);
+  const [inspectedStudentPhoto, setInspectedStudentPhoto] = useState<{ name: string; photoUrl: string; code?: string; nationalId?: string } | null>(null);
+  const [studentToDelete, setStudentToDelete] = useState<User | null>(null);
+  const [statusReasonModal, setStatusReasonModal] = useState<{
+    user: User;
+    status: "suspended" | "banned" | "rejected" | "deleted";
+  } | null>(null);
+  const [statusReasonInput, setStatusReasonInput] = useState('');
   const [selectedBatchForInspection, setSelectedBatchForInspection] = useState<PrintedCodesBatch | null>(null);
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const [editingPlatform, setEditingPlatform] = useState<EducationalPlatform | null>(null);
@@ -431,6 +443,11 @@ export const SuperAdminDashboard: React.FC = () => {
         >
           <Users className="w-4 h-4" />
           <span>أعضاء المنصة والطلاب الجدد ({userProfiles?.length || 0})</span>
+          {userProfiles?.filter(u => u.accountStatus === 'pending_review' || u.accountStatus === 'pending_verification').length > 0 && (
+            <span className="px-2 py-0.5 rounded-full text-[10px] font-black bg-amber-500 text-slate-950 animate-pulse border border-amber-300">
+              {userProfiles.filter(u => u.accountStatus === 'pending_review' || u.accountStatus === 'pending_verification').length} طلب جديد
+            </span>
+          )}
         </button>
 
         <button
@@ -930,57 +947,125 @@ export const SuperAdminDashboard: React.FC = () => {
           </div>
 
           {/* Search and Filters Bar */}
-          <div className={`p-4 rounded-2xl border flex flex-col md:flex-row items-center gap-3 ${
+          <div className={`p-4 rounded-2xl border space-y-3 ${
             isLight ? 'bg-white border-slate-200 shadow-sm' : 'bg-slate-900 border-slate-800'
           }`}>
-            <div className="relative flex-1 w-full">
-              <input
-                type="text"
-                placeholder="بحث بالاسم، كود الطالب (SEA-ID)، البريد، أو الهاتف..."
-                value={studentSearchTerm}
-                onChange={(e) => setStudentSearchTerm(e.target.value)}
-                className={`w-full px-4 py-2.5 pr-10 rounded-xl text-xs focus:border-cyan-500 focus:outline-none border ${
-                  isLight
-                    ? 'bg-slate-50 border-slate-200 text-slate-900 placeholder-slate-400'
-                    : 'bg-slate-950 border-slate-800 text-white placeholder-slate-500'
+            {/* Status Filter Tabs */}
+            <div className={`flex flex-wrap items-center gap-2 border-b pb-3 ${
+              isLight ? 'border-slate-200' : 'border-slate-800'
+            }`}>
+              <button
+                type="button"
+                onClick={() => setStudentStatusFilter('pending_review')}
+                className={`px-3.5 py-2 rounded-xl text-xs font-black transition-all flex items-center gap-2 cursor-pointer ${
+                  studentStatusFilter === 'pending_review'
+                    ? 'bg-amber-500 text-slate-950 shadow-md shadow-amber-950/20 font-black'
+                    : isLight ? 'bg-slate-100 text-slate-700 hover:bg-slate-200' : 'bg-slate-800 text-slate-300 hover:bg-slate-700'
                 }`}
-              />
-              <Search className={`w-4 h-4 absolute right-3.5 top-3 ${isLight ? 'text-slate-400' : 'text-slate-500'}`} />
+              >
+                <Clock className="w-3.5 h-3.5" />
+                <span>طلبات القيد الجديدة برسم الاعتماد</span>
+                <span className="px-2 py-0.5 rounded-full text-[10px] font-black bg-slate-950 text-amber-300">
+                  {userProfiles?.filter(u => u.accountStatus === 'pending_review' || u.accountStatus === 'pending_verification').length || 0}
+                </span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setStudentStatusFilter('active')}
+                className={`px-3.5 py-2 rounded-xl text-xs font-black transition-all flex items-center gap-2 cursor-pointer ${
+                  studentStatusFilter === 'active'
+                    ? 'bg-emerald-600 text-white shadow-md shadow-emerald-950/20 font-black'
+                    : isLight ? 'bg-slate-100 text-slate-700 hover:bg-slate-200' : 'bg-slate-800 text-slate-300 hover:bg-slate-700'
+                }`}
+              >
+                <CheckCircle2 className="w-3.5 h-3.5" />
+                <span>الحسابات النشطة والمعتمدة</span>
+                <span className="px-2 py-0.5 rounded-full text-[10px] font-black bg-slate-950 text-emerald-400">
+                  {userProfiles?.filter(u => u.accountStatus === 'active' || u.accountStatus === 'verified' || !u.accountStatus).length || 0}
+                </span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setStudentStatusFilter('suspended_banned')}
+                className={`px-3.5 py-2 rounded-xl text-xs font-black transition-all flex items-center gap-2 cursor-pointer ${
+                  studentStatusFilter === 'suspended_banned'
+                    ? 'bg-rose-600 text-white shadow-md shadow-rose-950/20 font-black'
+                    : isLight ? 'bg-slate-100 text-slate-700 hover:bg-slate-200' : 'bg-slate-800 text-slate-300 hover:bg-slate-700'
+                }`}
+              >
+                <ShieldAlert className="w-3.5 h-3.5" />
+                <span>الحسابات الموقوفة والمحظورة</span>
+                <span className="px-2 py-0.5 rounded-full text-[10px] font-black bg-slate-950 text-rose-300">
+                  {userProfiles?.filter(u => u.accountStatus === 'suspended' || u.accountStatus === 'banned').length || 0}
+                </span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setStudentStatusFilter('all')}
+                className={`px-3.5 py-2 rounded-xl text-xs font-black transition-all flex items-center gap-2 cursor-pointer ${
+                  studentStatusFilter === 'all'
+                    ? 'bg-cyan-500 text-slate-950 shadow-md shadow-cyan-950/20 font-black'
+                    : isLight ? 'bg-slate-100 text-slate-700 hover:bg-slate-200' : 'bg-slate-800 text-slate-300 hover:bg-slate-700'
+                }`}
+              >
+                <Users className="w-3.5 h-3.5" />
+                <span>كافة الحسابات ({userProfiles?.length || 0})</span>
+              </button>
             </div>
 
-            <div className="flex items-center gap-2 w-full md:w-auto">
-              <select
-                value={studentGradeFilter}
-                onChange={(e) => setStudentGradeFilter(e.target.value)}
-                className={`px-3 py-2.5 rounded-xl text-xs font-bold focus:border-cyan-500 focus:outline-none border ${
-                  isLight
-                    ? 'bg-slate-50 border-slate-200 text-slate-800'
-                    : 'bg-slate-950 border-slate-800 text-white'
-                }`}
-              >
-                <option value="all">كافة الصفوف الدراسية</option>
-                <option value="الأول">الصف الأول الثانوي</option>
-                <option value="الثاني">الصف الثاني الثانوي</option>
-                <option value="الثالث">الصف الثالث الثانوي</option>
-              </select>
+            <div className="flex flex-col md:flex-row items-center gap-3">
+              <div className="relative flex-1 w-full">
+                <input
+                  type="text"
+                  placeholder="بحث بالاسم، كود الطالب (SEA-ID)، البريد، أو الهاتف..."
+                  value={studentSearchTerm}
+                  onChange={(e) => setStudentSearchTerm(e.target.value)}
+                  className={`w-full px-4 py-2.5 pr-10 rounded-xl text-xs focus:border-cyan-500 focus:outline-none border ${
+                    isLight
+                      ? 'bg-slate-50 border-slate-200 text-slate-900 placeholder-slate-400'
+                      : 'bg-slate-950 border-slate-800 text-white placeholder-slate-500'
+                  }`}
+                />
+                <Search className={`w-4 h-4 absolute right-3.5 top-3 ${isLight ? 'text-slate-400' : 'text-slate-500'}`} />
+              </div>
 
-              <select
-                value={studentGovFilter}
-                onChange={(e) => setStudentGovFilter(e.target.value)}
-                className={`px-3 py-2.5 rounded-xl text-xs font-bold focus:border-cyan-500 focus:outline-none border ${
-                  isLight
-                    ? 'bg-slate-50 border-slate-200 text-slate-800'
-                    : 'bg-slate-950 border-slate-800 text-white'
-                }`}
-              >
-                <option value="all">كافة المحافظات</option>
-                <option value="القاهرة">القاهرة</option>
-                <option value="الجيزة">الجيزة</option>
-                <option value="الإسكندرية">الإسكندرية</option>
-                <option value="الدقهلية">الدقهلية</option>
-                <option value="الغربية">الغربية</option>
-                <option value="الشرقية">الشرقية</option>
-              </select>
+              <div className="flex items-center gap-2 w-full md:w-auto">
+                <select
+                  value={studentGradeFilter}
+                  onChange={(e) => setStudentGradeFilter(e.target.value)}
+                  className={`px-3 py-2.5 rounded-xl text-xs font-bold focus:border-cyan-500 focus:outline-none border ${
+                    isLight
+                      ? 'bg-slate-50 border-slate-200 text-slate-800'
+                      : 'bg-slate-950 border-slate-800 text-white'
+                  }`}
+                >
+                  <option value="all">كافة الصفوف الدراسية</option>
+                  <option value="الأول">الصف الأول الثانوي</option>
+                  <option value="الثاني">الصف الثاني الثانوي</option>
+                  <option value="الثالث">الصف الثالث الثانوي</option>
+                </select>
+
+                <select
+                  value={studentGovFilter}
+                  onChange={(e) => setStudentGovFilter(e.target.value)}
+                  className={`px-3 py-2.5 rounded-xl text-xs font-bold focus:border-cyan-500 focus:outline-none border ${
+                    isLight
+                      ? 'bg-slate-50 border-slate-200 text-slate-800'
+                      : 'bg-slate-950 border-slate-800 text-white'
+                  }`}
+                >
+                  <option value="all">كافة المحافظات</option>
+                  <option value="القاهرة">القاهرة</option>
+                  <option value="الجيزة">الجيزة</option>
+                  <option value="الإسكندرية">الإسكندرية</option>
+                  <option value="الدقهلية">الدقهلية</option>
+                  <option value="الغربية">الغربية</option>
+                  <option value="الشرقية">الشرقية</option>
+                </select>
+              </div>
             </div>
           </div>
 
@@ -998,6 +1083,9 @@ export const SuperAdminDashboard: React.FC = () => {
                   user.email?.toLowerCase().includes(term) ||
                   user.phone?.includes(term) ||
                   user.studentCode?.toLowerCase().includes(term) ||
+                  user.officialStudentId?.toLowerCase().includes(term) ||
+                  user.fileRegistrationNumber?.toLowerCase().includes(term) ||
+                  (user.seaSequenceNumber && String(user.seaSequenceNumber).includes(term)) ||
                   user.nationalId?.includes(term) ||
                   user.fourPartName?.toLowerCase().includes(term) ||
                   user.schoolName?.toLowerCase().includes(term);
@@ -1011,14 +1099,29 @@ export const SuperAdminDashboard: React.FC = () => {
                   user.governorate === studentGovFilter ||
                   user.gradeLevel?.includes(studentGovFilter);
 
-                return matchesSearch && matchesGrade && matchesGov;
+                const matchesStatus =
+                  studentStatusFilter === 'all'
+                    ? true
+                    : studentStatusFilter === 'pending_review'
+                    ? (user.accountStatus === 'pending_review' || user.accountStatus === 'pending_verification')
+                    : studentStatusFilter === 'active'
+                    ? (user.accountStatus === 'active' || user.accountStatus === 'verified' || !user.accountStatus)
+                    : studentStatusFilter === 'suspended_banned'
+                    ? (user.accountStatus === 'suspended' || user.accountStatus === 'banned')
+                    : true;
+
+                return matchesSearch && matchesGrade && matchesGov && matchesStatus;
               });
 
               if (filteredUsers.length === 0) {
                 return (
                   <div className="py-12 text-center space-y-3">
                     <Users className="w-12 h-12 text-slate-400 mx-auto stroke-[1.5]" />
-                    <p className={`text-sm font-bold ${isLight ? 'text-slate-700' : 'text-slate-400'}`}>لا يوجد أي طلاب مطابقين لمعايير البحث في كشوف القيد.</p>
+                    <p className={`text-sm font-bold ${isLight ? 'text-slate-700' : 'text-slate-400'}`}>
+                      {studentStatusFilter === 'pending_review'
+                        ? 'لا يوجد طلاب جدد بانتظار المراجعة والاعتماد حالياً 👍'
+                        : 'لا يوجد أي طلاب مطابقين لمعايير البحث في كشوف القيد.'}
+                    </p>
                     <p className={`text-xs ${isLight ? 'text-slate-500' : 'text-slate-500'}`}>جرب تغيير كلمات البحث أو المرشحات بالأعلى.</p>
                   </div>
                 );
@@ -1040,8 +1143,9 @@ export const SuperAdminDashboard: React.FC = () => {
                         <th className="p-4">هاتف الطالب (واتساب)</th>
                         <th className="p-4">هاتف ولي الأمر & الصلة</th>
                         <th className="p-4">المرحلة والمحافظة</th>
+                        <th className="p-4 text-center">حالة القيد والاعتماد</th>
                         <th className="p-4 text-center">المحفظة</th>
-                        <th className="p-4 text-center">الإجراءات</th>
+                        <th className="p-4 text-center">الإجراءات والاعتماد</th>
                       </tr>
                     </thead>
                     <tbody className={`divide-y ${
@@ -1051,14 +1155,51 @@ export const SuperAdminDashboard: React.FC = () => {
                     }`}>
                       {filteredUsers.map((user) => (
                         <tr key={user.id} className={`transition-colors ${
-                          isLight ? 'hover:bg-slate-50' : 'hover:bg-slate-850'
+                          user.accountStatus === 'pending_review' || user.accountStatus === 'pending_verification'
+                            ? (isLight ? 'bg-amber-50/50 hover:bg-amber-100/50' : 'bg-amber-950/20 hover:bg-amber-950/30')
+                            : (isLight ? 'hover:bg-slate-50' : 'hover:bg-slate-850')
                         }`}>
                           {/* Student Code & Name */}
                           <td className={`p-4 font-black ${isLight ? 'text-slate-900' : 'text-white'}`}>
                             <div className="flex items-center gap-2.5">
-                              <span className="w-9 h-9 rounded-xl bg-gradient-to-br from-cyan-500 to-indigo-600 text-slate-950 font-black text-xs flex items-center justify-center shrink-0 shadow-sm">
-                                {user.name.trim().substring(0, 2)}
-                              </span>
+                              <div className="relative shrink-0">
+                                {user.photoUrl || user.avatar ? (
+                                  <button
+                                    type="button"
+                                    onClick={() => setInspectedStudentPhoto({
+                                      name: user.fourPartName || user.name,
+                                      photoUrl: user.photoUrl || user.avatar!,
+                                      code: user.officialStudentId || user.studentCode,
+                                      nationalId: user.nationalId,
+                                    })}
+                                    className="relative group cursor-pointer block"
+                                    title="انقر لتكبير صورة الكاميرا الحية والتحقق من شخصية الطالب"
+                                  >
+                                    <img
+                                      src={user.photoUrl || user.avatar}
+                                      alt={user.name}
+                                      className="w-12 h-12 rounded-xl object-cover border-2 border-cyan-500 shadow-md group-hover:scale-105 transition-transform"
+                                    />
+                                    <span className="absolute -bottom-1 -right-1 bg-emerald-500 text-slate-950 p-0.5 rounded-full border border-slate-900 shadow" title="صورة الكاميرا الحية متوفرة">
+                                      <Camera className="w-3 h-3" />
+                                    </span>
+                                  </button>
+                                ) : (
+                                  <div className="relative">
+                                    <span className="w-12 h-12 rounded-xl bg-gradient-to-br from-cyan-500 to-indigo-600 text-slate-950 font-black text-xs flex items-center justify-center shadow-sm">
+                                      {user.name.trim().substring(0, 2)}
+                                    </span>
+                                    <span className="absolute -bottom-1 -right-1 bg-amber-500 text-slate-950 p-0.5 rounded-full border border-slate-900 shadow" title="صورة حية غير مرفقة">
+                                      <AlertCircle className="w-3 h-3" />
+                                    </span>
+                                  </div>
+                                )}
+                                {user.seaSequenceNumber && (
+                                  <span className="absolute -top-1 -right-1 bg-amber-400 text-slate-950 text-[9px] font-black px-1 rounded-full border border-slate-900 shadow">
+                                    #{String(user.seaSequenceNumber).padStart(4, '0')}
+                                  </span>
+                                )}
+                              </div>
                               <div>
                                 <div className={`font-black flex items-center gap-1.5 ${isLight ? 'text-slate-900' : 'text-slate-100'}`}>
                                   <span>{user.fourPartName || user.name}</span>
@@ -1066,17 +1207,19 @@ export const SuperAdminDashboard: React.FC = () => {
                                     <CheckCircle2 className="w-3.5 h-3.5 text-emerald-500 shrink-0" />
                                   )}
                                 </div>
-                                <div className="flex items-center gap-1.5 mt-0.5">
+                                <div className="flex flex-wrap items-center gap-1.5 mt-0.5">
                                   <span className={`font-mono text-[10px] px-1.5 py-0.5 rounded border font-bold select-all ${
                                     isLight
                                       ? 'text-cyan-700 bg-cyan-50 border-cyan-200'
                                       : 'text-cyan-400 bg-cyan-950/60 border-cyan-800/80'
                                   }`}>
-                                    {user.studentCode || `SEA-${user.id.substring(0, 6).toUpperCase()}`}
+                                    {user.officialStudentId || user.studentCode || `SEA-${user.id.substring(0, 6).toUpperCase()}`}
                                   </span>
-                                  <span className={`text-[10px] ${isLight ? 'text-slate-500' : 'text-slate-400'}`}>
-                                    {user.role === 'student' ? 'طالب مستقل' : user.role === 'teacher' ? 'مدرس' : 'إدارة'}
-                                  </span>
+                                  {user.fileRegistrationNumber && (
+                                    <span className="font-mono text-[10px] px-1.5 py-0.5 rounded border font-bold bg-amber-500/10 text-amber-600 border-amber-500/20 dark:text-amber-300 select-all">
+                                      ملف: {user.fileRegistrationNumber}
+                                    </span>
+                                  )}
                                 </div>
                               </div>
                             </div>
@@ -1147,25 +1290,93 @@ export const SuperAdminDashboard: React.FC = () => {
                             </div>
                           </td>
 
+                          {/* Account Status Badge */}
+                          <td className="p-4 text-center">
+                            {user.accountStatus === 'pending_review' || user.accountStatus === 'pending_verification' ? (
+                              <span className="px-2.5 py-1 rounded-full text-[11px] font-black bg-amber-500/10 text-amber-600 border border-amber-500/20 dark:text-amber-300 flex items-center gap-1 w-fit mx-auto animate-pulse">
+                                <Clock className="w-3 h-3" />
+                                <span>قيد المراجعة</span>
+                              </span>
+                            ) : user.accountStatus === 'rejected' ? (
+                              <span className="px-2.5 py-1 rounded-full text-[11px] font-black bg-rose-500/10 text-rose-600 border border-rose-500/20 dark:text-rose-400 flex items-center gap-1 w-fit mx-auto">
+                                <XCircle className="w-3 h-3" />
+                                <span>طلب مرفوض</span>
+                              </span>
+                            ) : user.accountStatus === 'banned' ? (
+                              <span className="px-2.5 py-1 rounded-full text-[11px] font-black bg-rose-500/10 text-rose-600 border border-rose-500/20 dark:text-rose-400 flex items-center gap-1 w-fit mx-auto">
+                                <ShieldAlert className="w-3 h-3" />
+                                <span>محظور نهائياً</span>
+                              </span>
+                            ) : user.accountStatus === 'suspended' ? (
+                              <span className="px-2.5 py-1 rounded-full text-[11px] font-black bg-orange-500/10 text-orange-600 border border-orange-500/20 dark:text-orange-400 flex items-center gap-1 w-fit mx-auto">
+                                <AlertCircle className="w-3 h-3" />
+                                <span>موقوف مؤقتاً</span>
+                              </span>
+                            ) : (
+                              <span className="px-2.5 py-1 rounded-full text-[11px] font-black bg-emerald-500/10 text-emerald-600 border border-emerald-500/20 dark:text-emerald-400 flex items-center gap-1 w-fit mx-auto">
+                                <CheckCircle2 className="w-3 h-3" />
+                                <span>معتمد ونشط</span>
+                              </span>
+                            )}
+                          </td>
+
                           {/* Wallet */}
                           <td className="p-4 text-center font-bold text-emerald-600 dark:text-emerald-400 font-mono">
                             {user.walletBalance !== undefined ? `${user.walletBalance} ج.م` : '0 ج.م'}
                           </td>
 
-                          {/* Action Button */}
+                          {/* Action Buttons */}
                           <td className="p-4 text-center">
-                            <button
-                              type="button"
-                              onClick={() => setSelectedStudentProfile(user)}
-                              className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-colors flex items-center gap-1 mx-auto cursor-pointer border ${
-                                isLight
-                                  ? 'bg-slate-100 hover:bg-cyan-500 hover:text-slate-950 text-slate-800 border-slate-200'
-                                  : 'bg-slate-800 hover:bg-cyan-500 hover:text-slate-950 text-cyan-400 border-slate-700'
-                              }`}
-                            >
-                              <Eye className="w-3.5 h-3.5" />
-                              <span>الملف الشامل</span>
-                            </button>
+                            <div className="flex items-center justify-center gap-1.5">
+                              {(user.accountStatus === 'pending_review' || user.accountStatus === 'pending_verification') && (
+                                <>
+                                  <button
+                                    type="button"
+                                    onClick={() => {
+                                      updateUserAccountStatus(user.id, 'active');
+                                      addToast('success', `تم اعتماد وتفعيل قيد الطالب "${user.name}" بنجاح`);
+                                    }}
+                                    className="px-2.5 py-1.5 rounded-lg text-xs font-black bg-emerald-500 hover:bg-emerald-600 text-slate-950 transition-colors shadow-sm cursor-pointer flex items-center gap-1"
+                                    title="قبول واعتماد الطالب بنقرة واحدة"
+                                  >
+                                    <CheckCircle2 className="w-3.5 h-3.5" />
+                                    <span>قبول</span>
+                                  </button>
+                                  <button
+                                    type="button"
+                                    onClick={() => {
+                                      updateUserAccountStatus(user.id, 'rejected');
+                                      addToast('error', `تم رفض طلب تسجيل الطالب "${user.name}"`);
+                                    }}
+                                    className="px-2.5 py-1.5 rounded-lg text-xs font-black bg-rose-500/20 hover:bg-rose-600 text-rose-700 dark:text-rose-300 hover:text-white transition-colors cursor-pointer flex items-center gap-1 border border-rose-500/30"
+                                    title="رفض طلب القيد ومنع تسجيل البيانات"
+                                  >
+                                    <XCircle className="w-3.5 h-3.5" />
+                                    <span>رفض</span>
+                                  </button>
+                                </>
+                              )}
+                              <button
+                                type="button"
+                                onClick={() => setSelectedStudentProfile(user)}
+                                className={`px-2.5 py-1.5 rounded-lg text-xs font-bold transition-colors flex items-center gap-1 cursor-pointer border ${
+                                  isLight
+                                    ? 'bg-slate-100 hover:bg-cyan-500 hover:text-slate-950 text-slate-800 border-slate-200'
+                                    : 'bg-slate-800 hover:bg-cyan-500 hover:text-slate-950 text-cyan-400 border-slate-700'
+                                }`}
+                              >
+                                <Eye className="w-3.5 h-3.5" />
+                                <span>الملف الشامل</span>
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => setStudentToDelete(user)}
+                                className="p-1.5 rounded-lg text-rose-500 hover:bg-rose-500/10 hover:text-rose-600 border border-rose-500/20 transition-colors cursor-pointer"
+                                title="حذف قيد الطالب نهائياً من القيد والمنظومة"
+                              >
+                                <Trash2 className="w-3.5 h-3.5" />
+                              </button>
+                            </div>
                           </td>
                         </tr>
                       ))}
@@ -2050,26 +2261,113 @@ export const SuperAdminDashboard: React.FC = () => {
             </div>
 
             {/* Live Camera Photo Verification Banner (if captured) */}
-            {selectedStudentProfile.photoUrl && (
-              <div className={`p-4 rounded-2xl border flex items-center gap-4 ${
+            {selectedStudentProfile.photoUrl || selectedStudentProfile.avatar ? (
+              <div className={`p-4 rounded-2xl border flex flex-col sm:flex-row items-center gap-4 ${
                 isLight ? 'bg-cyan-50/70 border-cyan-200' : 'bg-cyan-950/40 border-cyan-800/60'
               }`}>
-                <img
-                  src={selectedStudentProfile.photoUrl}
-                  alt="Live Capture"
-                  className="w-20 h-20 rounded-xl object-cover border-2 border-cyan-400 shadow-lg shrink-0"
-                />
-                <div className="space-y-1 text-right">
+                <div
+                  className="relative group cursor-pointer shrink-0"
+                  onClick={() => setInspectedStudentPhoto({
+                    name: selectedStudentProfile.fourPartName || selectedStudentProfile.name,
+                    photoUrl: selectedStudentProfile.photoUrl || selectedStudentProfile.avatar!,
+                    code: selectedStudentProfile.officialStudentId || selectedStudentProfile.studentCode,
+                    nationalId: selectedStudentProfile.nationalId,
+                  })}
+                  title="انقر لتكبير صورة وجه الطالب وفحص الهوية"
+                >
+                  <img
+                    src={selectedStudentProfile.photoUrl || selectedStudentProfile.avatar}
+                    alt="Live Capture"
+                    className="w-24 h-24 rounded-2xl object-cover border-2 border-cyan-400 shadow-xl group-hover:scale-105 transition-transform"
+                  />
+                  <span className="absolute bottom-1 right-1 bg-slate-900/80 text-white p-1 rounded-lg text-[10px] font-bold flex items-center gap-1 backdrop-blur-sm">
+                    <Eye className="w-3 h-3 text-cyan-400" />
+                    <span>تكبير</span>
+                  </span>
+                </div>
+                <div className="space-y-1.5 text-right flex-1">
                   <div className="text-xs font-black text-cyan-700 dark:text-cyan-300 flex items-center gap-1.5">
-                    <Camera className="w-3.5 h-3.5" />
+                    <Camera className="w-4 h-4 text-cyan-500" />
                     <span>صورة التحقق الحية عبر الكاميرا (Live Identity Verification)</span>
                   </div>
-                  <p className={`text-[11px] leading-relaxed ${isLight ? 'text-slate-600' : 'text-slate-400'}`}>
-                    تم التقاط هذه الصورة الحية للطالب مباشرة أثناء استمارة التسجيل الإلكتروني ومطابقتها مع البيانات المدخلة لمنع انتحال الشخصية.
+                  <p className={`text-xs leading-relaxed ${isLight ? 'text-slate-700' : 'text-slate-300'}`}>
+                    تم التقاط الصورة الحية لوجه الطالب أثناء استمارة التسجيل للتحقق من هويته ومطابقتها ومنع انتحال الشخصية. يمكنك النقر على الصورة لتكبيرها وفحصها بدقة.
                   </p>
                 </div>
               </div>
+            ) : (
+              <div className={`p-4 rounded-2xl border flex items-center gap-3 ${
+                isLight ? 'bg-amber-50 border-amber-200 text-amber-900' : 'bg-amber-950/30 border-amber-800 text-amber-200'
+              }`}>
+                <AlertCircle className="w-6 h-6 text-amber-500 shrink-0" />
+                <div className="text-xs space-y-0.5">
+                  <strong className="block font-black">تنبيـه إداري: لم يتم التقاط صورة حية للطالب أثناء التسجيل</strong>
+                  <p className="text-[11px] opacity-90">قد يكون الطالب قد سجل قبل تفعيل كاميرا التحقق. يرجى التأكد من هويته قبل القبول.</p>
+                </div>
+              </div>
             )}
+
+            {/* Official Admitted Student ID & Sequential File Card */}
+            <div className={`p-4 rounded-2xl border space-y-2 ${
+              isLight ? 'bg-amber-50/80 border-amber-200 text-slate-900' : 'bg-amber-950/30 border-amber-800/60 text-slate-100'
+            }`}>
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <div className="w-8 h-8 rounded-lg bg-amber-500/20 text-amber-600 dark:text-amber-400 flex items-center justify-center font-black">
+                    <IdCard className="w-4 h-4" />
+                  </div>
+                  <div>
+                    <h4 className="font-black text-xs">كود واعتمادات ملف الطالب الموحد (SEA Sequential Dossier)</h4>
+                    <p className="text-[10px] text-slate-500 dark:text-slate-400">مرتبط بملف المحتوى الحساس والأرقام التسلسلية لحظر التسريب</p>
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => {
+                    const currentSeq = selectedStudentProfile.seaSequenceNumber || 1;
+                    const seqFormatted = String(currentSeq).padStart(4, '0');
+                    updateStudentAdmissionData(selectedStudentProfile.id, {
+                      seaSequenceNumber: currentSeq,
+                      officialStudentId: `STU-2026-${seqFormatted}`,
+                      fileRegistrationNumber: `FILE-2026-${seqFormatted}`,
+                    });
+                    setSelectedStudentProfile((prev) => prev ? {
+                      ...prev,
+                      seaSequenceNumber: currentSeq,
+                      officialStudentId: `STU-2026-${seqFormatted}`,
+                      fileRegistrationNumber: `FILE-2026-${seqFormatted}`,
+                    } : null);
+                  }}
+                  className="px-3 py-1.5 rounded-xl bg-amber-500 hover:bg-amber-600 text-slate-950 text-[11px] font-black cursor-pointer shadow-sm flex items-center gap-1"
+                >
+                  <Sparkles className="w-3.5 h-3.5" />
+                  <span>{selectedStudentProfile.officialStudentId ? 'تجديد التسلسل' : 'توليد الكود التسلسلي تلقائياً'}</span>
+                </button>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 pt-1 font-mono text-xs">
+                <div className={`p-2.5 rounded-xl border ${isLight ? 'bg-white border-amber-200' : 'bg-slate-900 border-slate-800'}`}>
+                  <span className="block text-[9px] font-sans font-bold text-slate-500">الرقم التسلسلي الموحد:</span>
+                  <span className="font-black text-amber-600 dark:text-amber-400 text-sm">
+                    {selectedStudentProfile.seaSequenceNumber ? `#${String(selectedStudentProfile.seaSequenceNumber).padStart(4, '0')}` : 'غير مخصص بعد'}
+                  </span>
+                </div>
+
+                <div className={`p-2.5 rounded-xl border ${isLight ? 'bg-white border-amber-200' : 'bg-slate-900 border-slate-800'}`}>
+                  <span className="block text-[9px] font-sans font-bold text-slate-500">الكود الرسمي المقبول (Official ID):</span>
+                  <span className="font-black text-cyan-600 dark:text-cyan-400 select-all">
+                    {selectedStudentProfile.officialStudentId || selectedStudentProfile.studentCode || 'قيد الاعتماد'}
+                  </span>
+                </div>
+
+                <div className={`p-2.5 rounded-xl border ${isLight ? 'bg-white border-amber-200' : 'bg-slate-900 border-slate-800'}`}>
+                  <span className="block text-[9px] font-sans font-bold text-slate-500">رقم الملف التعليمي (Linked File ID):</span>
+                  <span className="font-black text-emerald-600 dark:text-emerald-400 select-all">
+                    {selectedStudentProfile.fileRegistrationNumber || 'قيد الاعتماد'}
+                  </span>
+                </div>
+              </div>
+            </div>
 
             {/* Dossier Grid Details */}
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs">
@@ -2116,16 +2414,32 @@ export const SuperAdminDashboard: React.FC = () => {
               </div>
 
               {/* Academic Track & Location */}
-              <div className={`p-3.5 rounded-2xl border space-y-1 ${
+              <div className={`p-3.5 rounded-2xl border space-y-2 ${
                 isLight ? 'bg-slate-50 border-slate-200' : 'bg-slate-950 border-slate-800'
               }`}>
                 <span className={`text-[10px] font-bold ${isLight ? 'text-slate-500' : 'text-slate-400'}`}>المسار الأكاديمي والمدرسة:</span>
                 <div className={`font-bold ${isLight ? 'text-slate-900' : 'text-white'}`}>
                   {selectedStudentProfile.gradeLevel || 'الصف الثالث الثانوي'}
                 </div>
-                <div className="text-[11px] text-cyan-600 dark:text-cyan-400">
-                  🏫 {selectedStudentProfile.schoolName || 'ثانوية عامة'} • 📍 {selectedStudentProfile.governorate || 'القاهرة'}
+                <div className="text-[11px] text-cyan-600 dark:text-cyan-400 font-bold">
+                  🏫 {selectedStudentProfile.schoolName || 'ثانوية عامة'} • 📍 {selectedStudentProfile.governorate || 'القاهرة'} {selectedStudentProfile.city ? `(${selectedStudentProfile.city})` : ''}
                 </div>
+                {selectedStudentProfile.gpsLocation && (
+                  <div className="pt-1.5 border-t border-slate-200 dark:border-slate-800 flex items-center justify-between">
+                    <span className="text-[11px] font-bold text-emerald-600 dark:text-emerald-400 flex items-center gap-1">
+                      📍 موثق بـ GPS (دقة: ±{selectedStudentProfile.gpsLocation.accuracy || 10}م)
+                    </span>
+                    <a
+                      href={`https://www.google.com/maps?q=${selectedStudentProfile.gpsLocation.lat},${selectedStudentProfile.gpsLocation.lng}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="px-2.5 py-1 rounded-lg bg-cyan-500/20 text-cyan-700 dark:text-cyan-300 hover:bg-cyan-500 hover:text-slate-950 text-[11px] font-bold transition-all flex items-center gap-1"
+                    >
+                      <span>عرض موقع المدرسة بـ Google Maps</span>
+                      <ExternalLink className="w-3 h-3" />
+                    </a>
+                  </div>
+                )}
               </div>
 
             </div>
@@ -2152,13 +2466,28 @@ export const SuperAdminDashboard: React.FC = () => {
                   }`}
                 >
                   <CheckCircle2 className="w-3.5 h-3.5" />
-                  <span>اعتماد وتفعيل القيد (Active)</span>
+                  <span>اعتماد وتفعيل القيد (Accept)</span>
                 </button>
                 <button
                   type="button"
                   onClick={() => {
-                    updateUserAccountStatus(selectedStudentProfile.id, 'suspended');
-                    setSelectedStudentProfile((prev) => prev ? { ...prev, accountStatus: 'suspended' } : null);
+                    setStatusReasonModal({ user: selectedStudentProfile, status: 'rejected' });
+                    setStatusReasonInput(selectedStudentProfile.accountStatusReason || 'عدم استيفاء شروط القيد أو تقديم بيانات غير دقيقة عند التسجيل.');
+                  }}
+                  className={`px-4 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5 ${
+                    selectedStudentProfile.accountStatus === 'rejected'
+                      ? 'bg-rose-600 text-white shadow-sm'
+                      : 'bg-rose-500/10 text-rose-600 hover:bg-rose-600 hover:text-white border border-rose-500/20'
+                  }`}
+                >
+                  <XCircle className="w-3.5 h-3.5" />
+                  <span>رفض طلب القيد وتوضيح السبب (Reject)</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setStatusReasonModal({ user: selectedStudentProfile, status: 'suspended' });
+                    setStatusReasonInput(selectedStudentProfile.accountStatusReason || 'تجميد الحساب وتكبيح الدخول بسبب تصوير المحتوى أو سلوك غير لائق.');
                   }}
                   className={`px-4 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5 ${
                     selectedStudentProfile.accountStatus === 'suspended'
@@ -2167,13 +2496,13 @@ export const SuperAdminDashboard: React.FC = () => {
                   }`}
                 >
                   <AlertCircle className="w-3.5 h-3.5" />
-                  <span>إيقاف مؤقت (Suspend)</span>
+                  <span>تجميد وإيقاف مؤقت (Freeze / Suspend)</span>
                 </button>
                 <button
                   type="button"
                   onClick={() => {
-                    updateUserAccountStatus(selectedStudentProfile.id, 'banned');
-                    setSelectedStudentProfile((prev) => prev ? { ...prev, accountStatus: 'banned' } : null);
+                    setStatusReasonModal({ user: selectedStudentProfile, status: 'banned' });
+                    setStatusReasonInput(selectedStudentProfile.accountStatusReason || 'حظر الحساب نهائياً لمخالفة شروط الاستخدام وحماية الملكية الفكرية.');
                   }}
                   className={`px-4 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5 ${
                     selectedStudentProfile.accountStatus === 'banned'
@@ -2183,6 +2512,18 @@ export const SuperAdminDashboard: React.FC = () => {
                 >
                   <ShieldCheck className="w-3.5 h-3.5" />
                   <span>حظر الحساب (Ban)</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setStatusReasonModal({ user: selectedStudentProfile, status: 'deleted' });
+                    setStatusReasonInput(selectedStudentProfile.accountStatusReason || 'مسح وإلغاء قيد الحساب نهائياً مع إشعار الطالب بسبب الإلغاء.');
+                  }}
+                  className="px-4 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5 bg-rose-600 hover:bg-rose-700 text-white shadow-sm"
+                  title="مسح الطالب وإبلاغه بسبب إلغاء القيد"
+                >
+                  <Trash2 className="w-3.5 h-3.5" />
+                  <span>حذف وإلغاء القيد نهائياً</span>
                 </button>
               </div>
             </div>
@@ -2622,6 +2963,241 @@ export const SuperAdminDashboard: React.FC = () => {
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* Modal: Delete Student Confirmation */}
+      {studentToDelete && (
+        <div className={`fixed inset-0 z-50 flex items-center justify-center p-4 backdrop-blur-md ${
+          isLight ? 'bg-slate-900/60' : 'bg-slate-950/85'
+        }`}>
+          <div className={`relative w-full max-w-md rounded-3xl border shadow-2xl p-6 text-right space-y-5 animate-scale-in ${
+            isLight ? 'bg-white border-slate-200' : 'bg-slate-900 border-slate-800'
+          }`}>
+            <div className="w-14 h-14 rounded-2xl bg-rose-500/10 border border-rose-500/20 text-rose-500 flex items-center justify-center mx-auto">
+              <Trash2 className="w-7 h-7" />
+            </div>
+
+            <div className="text-center space-y-2">
+              <h3 className={`text-lg font-black ${isLight ? 'text-slate-900' : 'text-white'}`}>
+                تأكيد حذف قيد الطالب نهائياً
+              </h3>
+              <p className={`text-xs leading-relaxed ${isLight ? 'text-slate-600' : 'text-slate-400'}`}>
+                هل أنت متأكد تماماً من حذف وإلغاء قيد الطالب{' '}
+                <strong className="text-rose-600 dark:text-rose-400 font-bold">{studentToDelete.fourPartName || studentToDelete.name}</strong>{' '}
+                ({studentToDelete.officialStudentId || studentToDelete.studentCode || studentToDelete.email})؟
+              </p>
+              <div className="p-3 rounded-2xl bg-rose-500/10 border border-rose-500/20 text-rose-600 dark:text-rose-400 text-xs font-bold text-right space-y-1">
+                <span>⚠️ تنبيه سيادة الإدارة:</span>
+                <p className="text-[11px] font-normal opacity-90">
+                  هذا الإجراء مسح نهائي لبيانات وملف الطالب ومحفظته الإلكترونية من قواعد البيانات بالكامل، ولا يمكن التراجع عنه!
+                </p>
+              </div>
+            </div>
+
+            <div className="flex items-center justify-center gap-3 pt-2">
+              <button
+                type="button"
+                onClick={() => setStudentToDelete(null)}
+                className={`flex-1 py-2.5 rounded-xl font-bold text-xs cursor-pointer ${
+                  isLight ? 'bg-slate-100 hover:bg-slate-200 text-slate-700' : 'bg-slate-800 hover:bg-slate-700 text-white'
+                }`}
+              >
+                إلغاء الأمر
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  deleteUserProfile(studentToDelete.id);
+                  if (selectedStudentProfile?.id === studentToDelete.id) {
+                    setSelectedStudentProfile(null);
+                  }
+                  setStudentToDelete(null);
+                }}
+                className="flex-1 py-2.5 rounded-xl bg-rose-600 hover:bg-rose-700 text-white font-black text-xs cursor-pointer shadow-lg shadow-rose-600/20 flex items-center justify-center gap-1.5"
+              >
+                <Trash2 className="w-4 h-4" />
+                <span>نعم، حذف الطالب</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal: Full-Screen Live Student Photo Inspection */}
+      {inspectedStudentPhoto && (
+        <div className={`fixed inset-0 z-50 flex items-center justify-center p-4 backdrop-blur-md ${
+          isLight ? 'bg-slate-900/70' : 'bg-slate-950/90'
+        }`}>
+          <div className={`relative w-full max-w-lg rounded-3xl border shadow-2xl p-6 text-right space-y-4 animate-scale-in ${
+            isLight ? 'bg-white border-slate-200' : 'bg-slate-900 border-slate-800'
+          }`}>
+            <div className={`flex items-center justify-between border-b pb-3 ${
+              isLight ? 'border-slate-200' : 'border-slate-800'
+            }`}>
+              <div className="flex items-center gap-2">
+                <Camera className="w-5 h-5 text-cyan-500" />
+                <h3 className={`font-black text-sm ${isLight ? 'text-slate-900' : 'text-white'}`}>
+                  فحص الصورة الحية للطالب وربط الهوية
+                </h3>
+              </div>
+              <button
+                type="button"
+                onClick={() => setInspectedStudentPhoto(null)}
+                className={`w-8 h-8 rounded-full flex items-center justify-center cursor-pointer ${
+                  isLight ? 'bg-slate-100 text-slate-500 hover:text-slate-900' : 'bg-slate-800 text-slate-400 hover:text-white'
+                }`}
+              >
+                ✕
+              </button>
+            </div>
+
+            <div className="text-center space-y-3">
+              <div className="relative inline-block mx-auto">
+                <img
+                  src={inspectedStudentPhoto.photoUrl}
+                  alt={inspectedStudentPhoto.name}
+                  className="max-h-[380px] w-auto max-w-full rounded-2xl object-contain border-4 border-cyan-500/80 shadow-2xl mx-auto"
+                />
+              </div>
+              <div className="space-y-1">
+                <div className={`text-sm font-black ${isLight ? 'text-slate-900' : 'text-white'}`}>
+                  {inspectedStudentPhoto.name}
+                </div>
+                {inspectedStudentPhoto.code && (
+                  <div className="text-xs font-mono text-cyan-600 dark:text-cyan-400 font-bold">
+                    الكود الرسمي: {inspectedStudentPhoto.code}
+                  </div>
+                )}
+                {inspectedStudentPhoto.nationalId && (
+                  <div className={`text-xs font-mono ${isLight ? 'text-slate-600' : 'text-slate-400'}`}>
+                    الرقم القومي: {inspectedStudentPhoto.nationalId}
+                  </div>
+                )}
+                <p className={`text-[11px] pt-1 ${isLight ? 'text-slate-500' : 'text-slate-400'}`}>
+                  📸 تم التقاط هذا الخيار بالكاميرا الحية لتأكيد هوية الطالب المطابق ومنع انتحال الشخصية.
+                </p>
+              </div>
+            </div>
+
+            <div className="pt-2 flex justify-end">
+              <button
+                type="button"
+                onClick={() => setInspectedStudentPhoto(null)}
+                className="w-full sm:w-auto px-6 py-2.5 rounded-xl bg-cyan-500 hover:bg-cyan-400 text-slate-950 font-black text-xs cursor-pointer shadow-md"
+              >
+                تأكيد مطابقة الهوية والإغلاق
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Admin Account Status Reason Input Modal */}
+      {statusReasonModal && (
+        <div className={`fixed inset-0 z-50 flex items-center justify-center p-4 backdrop-blur-md ${
+          isLight ? 'bg-slate-900/60' : 'bg-slate-950/85'
+        }`}>
+          <div className={`relative w-full max-w-lg rounded-3xl border shadow-2xl p-6 text-right space-y-4 animate-scale-in ${
+            isLight ? 'bg-white border-slate-200' : 'bg-slate-900 border-slate-800'
+          }`} dir="rtl">
+            <div className="flex items-center justify-between pb-3 border-b border-slate-200 dark:border-slate-800">
+              <div className="flex items-center gap-2">
+                <div className="w-10 h-10 rounded-xl bg-amber-500/10 text-amber-500 flex items-center justify-center">
+                  <AlertCircle className="w-5 h-5" />
+                </div>
+                <div>
+                  <h3 className={`text-sm font-black ${isLight ? 'text-slate-900' : 'text-white'}`}>
+                    {statusReasonModal.status === 'suspended' && 'تجميد وإيقاف حساب الطالب'}
+                    {statusReasonModal.status === 'banned' && 'حظر حساب الطالب نهائياً'}
+                    {statusReasonModal.status === 'rejected' && 'رفض طلب القيد بقرار إداري'}
+                    {statusReasonModal.status === 'deleted' && 'حذف وإلغاء قيد الطالب نهائياً'}
+                  </h3>
+                  <p className="text-[11px] text-slate-500 font-medium">
+                    الطالب: <strong className="text-cyan-600 font-bold">{statusReasonModal.user.fourPartName || statusReasonModal.user.name}</strong> ({statusReasonModal.user.officialStudentId || statusReasonModal.user.studentCode})
+                  </p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setStatusReasonModal(null)}
+                className="p-2 rounded-xl text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 cursor-pointer"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <div className="space-y-2">
+              <label className={`block text-xs font-bold ${isLight ? 'text-slate-700' : 'text-slate-300'}`}>
+                اكتب سبب {statusReasonModal.status === 'suspended' ? 'تجميد' : statusReasonModal.status === 'banned' ? 'حظر' : 'إلغاء'} الحساب يدوياً ليظهر للطالب عند محاولة الدخول: <span className="text-rose-500">*</span>
+              </label>
+              <textarea
+                rows={4}
+                value={statusReasonInput}
+                onChange={(e) => setStatusReasonInput(e.target.value)}
+                placeholder="مثال: تم تجميد حسابك بسبب تصوير وتداول المحتوى التعليمي بغير وجه حق، أو تقديم بيانات غير صحيحة عند التسجيل..."
+                className="w-full p-3.5 rounded-2xl bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-700 text-slate-900 dark:text-white placeholder-slate-500 text-xs font-medium focus:border-cyan-500 focus:outline-none leading-relaxed"
+              />
+            </div>
+
+            {/* Quick Presets */}
+            <div className="space-y-1.5">
+              <span className="text-[10px] font-bold text-slate-500">نماذج أسباب سريعة جاهزة للاختيار:</span>
+              <div className="flex flex-wrap gap-1.5">
+                {[
+                  "مخالفة قواعد الانضباط وتصوير وتداول المحتوى التعليمي",
+                  "تقديم بيانات قيد ومستندات غير صحيحة عند التسجيل",
+                  "محاولات دخول مشبوهة وتكرار فتح الحساب من أجهزة متعددة",
+                  "عدم الالتزام بسداد المصروفات والرسوم الدراسية المستحقة",
+                  "سلوك غير لائق وإساءة استخدام أدوات المنظومة"
+                ].map((preset, idx) => (
+                  <button
+                    key={idx}
+                    type="button"
+                    onClick={() => setStatusReasonInput(preset)}
+                    className="px-2.5 py-1 rounded-lg bg-slate-100 dark:bg-slate-800 hover:bg-cyan-500/10 hover:text-cyan-600 text-[10px] font-medium transition-all text-slate-600 dark:text-slate-400 border border-slate-200 dark:border-slate-700 cursor-pointer"
+                  >
+                    + {preset}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <div className="flex items-center justify-end gap-2 pt-3 border-t border-slate-200 dark:border-slate-800">
+              <button
+                type="button"
+                onClick={() => setStatusReasonModal(null)}
+                className="px-4 py-2 rounded-xl text-xs font-bold text-slate-600 dark:text-slate-400 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 cursor-pointer"
+              >
+                إلغاء
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  const finalReason = statusReasonInput.trim() || "تم تجميد/إلغاء الحساب بقرار إداري مباشر لمخالفة التعليمات.";
+                  if (statusReasonModal.status === 'deleted') {
+                    deleteUserProfile(statusReasonModal.user.id, finalReason);
+                    if (selectedStudentProfile?.id === statusReasonModal.user.id) {
+                      setSelectedStudentProfile(null);
+                    }
+                  } else {
+                    updateUserAccountStatus(statusReasonModal.user.id, statusReasonModal.status, finalReason);
+                    if (selectedStudentProfile?.id === statusReasonModal.user.id) {
+                      setSelectedStudentProfile((prev) => prev ? { ...prev, accountStatus: statusReasonModal.status, accountStatusReason: finalReason } : null);
+                    }
+                  }
+                  setStatusReasonModal(null);
+                  setStatusReasonInput("");
+                }}
+                className={`px-5 py-2 rounded-xl text-xs font-black text-white shadow-lg flex items-center gap-1.5 cursor-pointer ${
+                  statusReasonModal.status === 'suspended' ? 'bg-amber-600 hover:bg-amber-700' : 'bg-rose-600 hover:bg-rose-700'
+                }`}
+              >
+                <CheckCircle2 className="w-4 h-4" />
+                <span>تأكيد الإجراء وتوثيق السبب للطالب</span>
+              </button>
+            </div>
           </div>
         </div>
       )}

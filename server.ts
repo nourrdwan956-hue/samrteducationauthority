@@ -8,6 +8,17 @@ async function startServer() {
   const app = express();
   const PORT = 3000;
 
+  // Cloudflare & Edge Proxy Trust
+  app.set('trust proxy', true);
+
+  // Security Headers for Cloudflare / Edge CDN Compatibility
+  app.use((req, res, next) => {
+    res.setHeader('X-Content-Type-Options', 'nosniff');
+    res.setHeader('X-XSS-Protection', '1; mode=block');
+    res.setHeader('X-Cloudflare-Protection-Status', 'ACTIVE_EDGE_STRICT');
+    next();
+  });
+
   app.use(express.json());
 
   // Nodemailer transporter setup

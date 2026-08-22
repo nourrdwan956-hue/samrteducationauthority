@@ -8,6 +8,7 @@ import {
 } from 'lucide-react';
 import { useApp } from '../../context/AppContext';
 import { Assignment, Question } from '../../types';
+import { AntiLeakWatermark } from '../AntiLeakWatermark';
 import { isEnglishText, getOptionPrefix } from '../../utils/langUtils';
 import {
   initScreenRecordingProtection,
@@ -694,15 +695,7 @@ export const StudentAssignmentView: React.FC<StudentAssignmentViewProps> = ({
       } space-y-5 text-right transition-colors duration-300 relative ${getThemeClass()} select-none`}
     >
       {/* Background Anti-Leak Watermark */}
-      {inActiveSession && (
-        <div className="fixed inset-0 pointer-events-none z-0 opacity-[0.03] dark:opacity-[0.04] flex flex-wrap items-center justify-center gap-16 overflow-hidden select-none" aria-hidden="true">
-          {Array.from({ length: 18 }).map((_, i) => (
-            <div key={i} className="transform -rotate-12 text-sm font-black font-mono text-slate-500 whitespace-nowrap">
-              🔒 {currentUser?.name || currentUser?.email || 'STUDENT_ASSIGNMENT'} • {currentAssignment.title} • {currentAssignment.id.slice(0, 8)}
-            </div>
-          ))}
-        </div>
-      )}
+      {inActiveSession && <AntiLeakWatermark mode="document" />}
 
       {/* Concept & Formula Sheet Modal */}
       {isConceptSheetOpen && (

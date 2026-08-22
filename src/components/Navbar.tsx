@@ -94,7 +94,11 @@ export const Navbar: React.FC = () => {
                       {currentUser.name}
                     </span>
                     <span className="text-[10px] text-cyan-500 font-bold uppercase tracking-wider">
-                      {currentUser.role === 'super_admin' ? 'الإدارة العليا' : currentUser.role === 'teacher' ? 'لوحة المعلم' : `بوابة الطالب • ${currentUser.walletBalance || 0} ج.م`}
+                      {currentUser.role === 'super_admin'
+                        ? 'الإدارة العليا'
+                        : currentUser.role === 'teacher'
+                        ? 'لوحة المعلم'
+                        : `${currentUser.officialStudentId || currentUser.studentCode || 'بوابة الطالب المعتمدة'} • ${currentUser.walletBalance || 0} ج.م`}
                     </span>
                   </div>
                   

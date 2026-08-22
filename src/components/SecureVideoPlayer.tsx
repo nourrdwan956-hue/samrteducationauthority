@@ -3,6 +3,7 @@ import { useApp } from '../context/AppContext';
 import { Lesson, Course, StudentNote, LessonQuestion } from '../types';
 import { extractYouTubeId } from '../lib/videoUtils';
 import { decryptVideoUrl, resolveYouTubeId, getObfuscatedEmbedUrl } from '../lib/videoEncryption';
+import { AntiLeakWatermark } from './AntiLeakWatermark';
 import { attachDRMHardwareProtection } from '../lib/videoDRM';
 import {
   initScreenRecordingProtection,
@@ -851,6 +852,7 @@ export const SecureVideoPlayer: React.FC<SecureVideoPlayerProps> = ({
         id="protected-video-container"
         className="relative w-full rounded-3xl overflow-hidden bg-slate-950 border border-slate-800 shadow-2xl group select-none aspect-video"
       >
+        <AntiLeakWatermark mode="video" />
         {/* VIDEO STREAM ENGINE: Direct MP4 or Secure Edge-Masked YouTube IFrame */}
         <div className="relative w-full h-full overflow-hidden bg-slate-950 flex items-center justify-center select-none">
           {securityStatus.isRecordingDetected || securityStatus.isDevToolsOpen || securityStatus.isWindowBlurred || isTabInactive ? (
