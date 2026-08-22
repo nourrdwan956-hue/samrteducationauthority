@@ -91,17 +91,10 @@ export const StudentSignUpPage: React.FC = () => {
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
 
-  // STEP 2 FIELDS: Human Verification (Scenarios 35 to 55 continuous loop with 2-mistake auto-switch)
-  const [completedScenarioIds, setCompletedScenarioIds] = useState<number[]>([]);
-  const [scenarioMistakeCount, setScenarioMistakeCount] = useState(0);
-
-  const [selectedScenario, setSelectedScenario] = useState<HumanScenario>(
-    HUMAN_SCENARIOS[0],
-  );
-  const [isEnglishView, setIsEnglishView] = useState(false);
-  const [selectedHumanOption, setSelectedHumanOption] = useState<number | null>(
-    null,
-  );
+  // STEP 2 FIELDS: Infinite Smart Visual & Numeric Captcha (Hacker-proof)
+  const [captchaCode, setCaptchaCode] = useState<string>(() => Math.floor(1000 + Math.random() * 9000).toString());
+  const [captchaInput, setCaptchaInput] = useState("");
+  const [captchaErrorCount, setCaptchaErrorCount] = useState(0);
   const [humanVerifiedSuccess, setHumanVerifiedSuccess] = useState(false);
 
   // STEP 3 FIELDS: Universal Camera Capture & Verification
@@ -886,68 +879,52 @@ export const StudentSignUpPage: React.FC = () => {
       return;
     }
 
-    // Advance directly to Step 2: Intelligent Human Verification
-    pickRandomScenario();
+    // Advance directly to Step 2: Infinite Smart Visual Numeric Captcha
+    generateNewCaptcha();
     setStep("human_verification");
     addToast(
       "info",
       "تم التحقق المبدئي من البيانات ✅",
-      "يرجى الإجابة عن سؤال التحقق البشري الذكي للمتابعة.",
+      "يرجى إدخال رمز التحقق الأمني الظاهراً أدناه للمتابعة.",
     );
   };
 
   // Dynamic Name Segments from smart compound parser
   const nameParts = parseArabicNameParts(fourPartName);
 
-  // Pick random human scenario (Looping through 55 scenarios without repetition until all are completed)
-  const pickRandomScenario = () => {
-    // Filter out scenarios already completed in the current cycle
-    let available = HUMAN_SCENARIOS.filter(
-      (s) => !completedScenarioIds.includes(s.id)
-    );
-
-    // If all 55 scenarios have been completed, reset the loop cycle
-    if (available.length === 0) {
-      setCompletedScenarioIds([]);
-      available = HUMAN_SCENARIOS;
-    }
-
-    const randomIndex = Math.floor(Math.random() * available.length);
-    const chosen = available[randomIndex];
-
-    setSelectedScenario(chosen);
-    setSelectedHumanOption(null);
+  // Generate a brand new infinite random captcha code
+  const generateNewCaptcha = () => {
+    const newCode = Math.floor(1000 + Math.random() * 9000).toString();
+    setCaptchaCode(newCode);
+    setCaptchaInput("");
     setHumanVerifiedSuccess(false);
-    setScenarioMistakeCount(0);
+    setCaptchaErrorCount(0);
+    setErrorMsg("");
   };
 
-  // STEP 2 HANDLER: Human Verification Option Select with 2-Mistake Auto-Switch Rule
-  const handleSelectHumanOption = (optionIndex: number) => {
-    setSelectedHumanOption(optionIndex);
-    if (optionIndex === selectedScenario.correctIndex) {
+  // STEP 2 HANDLER: Verify Infinite Captcha Input
+  const handleVerifyCaptcha = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (captchaInput.trim() === captchaCode) {
       setHumanVerifiedSuccess(true);
       setErrorMsg("");
-      // Mark current scenario as successfully completed in this loop cycle
-      if (!completedScenarioIds.includes(selectedScenario.id)) {
-        setCompletedScenarioIds((prev) => [...prev, selectedScenario.id]);
-      }
+      addToast(
+        "success",
+        "تم التحقق البشري بنجاح ✅",
+        "يمكنك الآن الانتقال لالتقاط صورتك الشخصية الحية."
+      );
     } else {
-      const newMistakes = scenarioMistakeCount + 1;
-      setScenarioMistakeCount(newMistakes);
+      const newErrors = captchaErrorCount + 1;
+      setCaptchaErrorCount(newErrors);
       setHumanVerifiedSuccess(false);
 
-      if (newMistakes >= 2) {
-        // Rule: If 2 mistakes are made in the same passage, replace with another scenario immediately
-        setErrorMsg(
-          "⚠️ تم تسجيل خطأين في نفس الفقرة. تنفيذاً لسياسة الأمان الصارمة، تم استبدال السيناريو تلقائياً بسيناريو جديد."
-        );
+      if (newErrors >= 2) {
+        setErrorMsg("⚠️ خطأ في رمز التحقق مرتين. تم توليد رمز جديد تلقائياً لأسباب أمنية.");
         setTimeout(() => {
-          pickRandomScenario();
+          generateNewCaptcha();
         }, 1200);
       } else {
-        setErrorMsg(
-          "الإجابة غير صحيحة. (خطأ 1 من 2). اقرأ الفقرة بدقة وأعد المحاولة، أو سيتم استبدال السيناريو تلقائياً عند الخطأ الثاني."
-        );
+        setErrorMsg("رمز التحقق غير صحيح (خطأ 1 من 2). يرجى إعادة كتابة الأرقام الظاهرة بدقة.");
       }
     }
   };
@@ -1680,116 +1657,100 @@ export const StudentSignUpPage: React.FC = () => {
         )}
 
         {/* ══════════════════════════════════════════════════════
-            STEP 2: INTELLIGENT HUMAN VERIFICATION (16+ SCENARIOS)
+            STEP 2: INFINITE SMART VISUAL NUMERIC CAPTCHA
         ══════════════════════════════════════════════════════ */}
         {step === "human_verification" && (
-          <div className="py-4 space-y-6 animate-fade-in max-w-2xl mx-auto text-right">
+          <div className="py-6 space-y-6 animate-fade-in max-w-xl mx-auto text-right">
             <div className="flex items-center justify-between border-b border-slate-200 dark:border-slate-800 pb-4">
               <div className="flex items-center gap-3">
-                <div className="w-12 h-12 rounded-2xl bg-teal-500/20 text-teal-400 flex items-center justify-center border border-teal-500/30">
-                  <BrainCircuit className="w-6 h-6" />
+                <div className="w-12 h-12 rounded-2xl bg-cyan-500/20 text-cyan-400 flex items-center justify-center border border-cyan-500/30">
+                  <ShieldCheck className="w-6 h-6" />
                 </div>
                 <div>
                   <h3 className="text-lg font-black text-slate-900 dark:text-white">
-                    الخطوة الثانية: التحقق البشري الذكي (Human Logic Verification)
+                    الخطوة الثانية: التحقق البشري الأمني (Security Captcha)
                   </h3>
                   <p className="text-xs text-slate-600 dark:text-slate-400">
-                    اقرأ الفقرة التالية بعناية وأجب عن السؤال المرفق لتأكيد هويتك
+                    أدخل الأرقام الظاهرة في الصندوق أدناه بدقة لتأكيد أنك مستخدم حقيقي
                   </p>
                 </div>
               </div>
 
-              <div className="flex items-center gap-2">
-                {/* Language Toggle */}
-                <button
-                  type="button"
-                  onClick={() => setIsEnglishView(!isEnglishView)}
-                  className="px-3 py-1.5 rounded-xl bg-slate-200 dark:bg-slate-800 hover:bg-slate-300 dark:bg-slate-700 text-cyan-700 dark:text-cyan-400 text-xs font-black border border-slate-300 dark:border-slate-700 flex items-center gap-1.5 transition-colors cursor-pointer"
-                >
-                  <Languages className="w-3.5 h-3.5" />
-                  <span>{isEnglishView ? "العربية" : "English View"}</span>
-                </button>
-
-                {/* Change Scenario */}
-                <button
-                  type="button"
-                  onClick={pickRandomScenario}
-                  className="p-2 rounded-xl bg-slate-200 dark:bg-slate-800 hover:bg-slate-300 dark:bg-slate-700 text-slate-700 dark:text-slate-300 text-xs font-bold border border-slate-300 dark:border-slate-700 transition-colors cursor-pointer"
-                  title="سؤال آخر عشوائي"
-                >
-                  <RefreshCw className="w-4 h-4" />
-                </button>
-              </div>
+              <button
+                type="button"
+                onClick={generateNewCaptcha}
+                className="p-2.5 rounded-xl bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 text-cyan-600 dark:text-cyan-400 text-xs font-bold border border-slate-300 dark:border-slate-700 transition-colors flex items-center gap-1.5 cursor-pointer"
+                title="توليد رمز جديد"
+              >
+                <RefreshCw className="w-4 h-4 animate-spin-hover" />
+                <span>رمز جديد</span>
+              </button>
             </div>
 
-            {/* Scenario Story Box with High Contrast and Enhanced Typography */}
-            <div className="p-7 rounded-3xl bg-white dark:bg-slate-900 border-2 border-teal-500/50 space-y-5 shadow-2xl relative overflow-hidden">
-              <div className="flex items-center justify-between text-xs font-black text-teal-700 dark:text-teal-300 bg-teal-50 dark:bg-teal-950/40 px-4 py-2.5 rounded-xl border border-teal-200 dark:border-teal-800">
-                <span className="flex items-center gap-2 text-sm">
-                  <BookOpen className="w-4 h-4" />
-                  {isEnglishView
-                    ? selectedScenario.titleEn
-                    : selectedScenario.titleAr}
+            {/* Captcha Display Box */}
+            <div className="p-8 rounded-3xl bg-slate-950 border-2 border-cyan-500/50 space-y-6 shadow-2xl relative overflow-hidden text-center">
+              {/* Background decorative scanlines/dots */}
+              <div className="absolute inset-0 bg-[radial-gradient(#06b6d4_1px,transparent_1px)] [background-size:16px_16px] opacity-10 pointer-events-none" />
+
+              <div className="relative z-10 flex flex-col items-center justify-center gap-4">
+                <span className="text-[11px] font-black text-cyan-400 tracking-wider uppercase bg-cyan-950/80 px-4 py-1 rounded-full border border-cyan-500/40">
+                  رمز التحقق الآمن المتغير (Infinite Anti-Bot Protection)
                 </span>
-                <span className="text-[11px] font-mono px-2.5 py-0.5 bg-teal-200 dark:bg-teal-900 text-teal-900 dark:text-teal-200 rounded-lg">
-                  سيناريو رقم #{selectedScenario.id} من 55
-                </span>
+
+                {/* Rendered Captcha Code with styling and skew */}
+                <div className="py-4 px-8 rounded-2xl bg-gradient-to-r from-slate-900 via-cyan-950 to-slate-900 border border-cyan-500/40 shadow-inner flex items-center justify-center gap-3 select-none">
+                  {captchaCode.split("").map((digit, i) => (
+                    <span
+                      key={i}
+                      className="text-4xl sm:text-5xl font-black font-mono text-cyan-300 tracking-widest transform inline-block drop-shadow-[0_0_12px_rgba(6,182,212,0.6)]"
+                      style={{
+                        transform: `rotate(${(i % 2 === 0 ? 1 : -1) * (3 + i * 2)}deg) translateY(${i % 2 === 0 ? -2 : 2}px)`,
+                      }}
+                    >
+                      {digit}
+                    </span>
+                  ))}
+                </div>
+
+                <p className="text-xs text-slate-400 font-medium">
+                  انظر إلى الأرقام أعلاه واكتبها مطابقة تماماً في الحقل أدناه:
+                </p>
               </div>
 
-              {/* 5+ Line Narrative with High Contrast Text (slate-900 on white / slate-100 on dark-slate-900) */}
-              <p className="text-sm sm:text-base text-slate-900 dark:text-slate-100 leading-loose font-bold whitespace-pre-line px-1">
-                {isEnglishView
-                  ? selectedScenario.storyEn
-                  : selectedScenario.storyAr}
-              </p>
+              {/* Captcha Input Form */}
+              <form onSubmit={handleVerifyCaptcha} className="space-y-4 relative z-10">
+                <div className="relative max-w-xs mx-auto">
+                  <input
+                    type="text"
+                    maxLength={4}
+                    required
+                    autoFocus
+                    placeholder="أدخل 4 أرقام"
+                    value={captchaInput}
+                    onChange={(e) => setCaptchaInput(e.target.value.replace(/\D/g, "").slice(0, 4))}
+                    className="w-full px-6 py-4 rounded-2xl bg-slate-900 border-2 border-cyan-500/60 text-white text-center text-2xl font-black font-mono tracking-[0.5em] focus:border-cyan-400 focus:outline-none shadow-lg placeholder:text-slate-600 placeholder:tracking-normal placeholder:text-sm"
+                  />
+                </div>
 
-              {/* Question */}
-              <div className="p-4 rounded-2xl bg-cyan-50 dark:bg-cyan-950/50 border border-cyan-300 dark:border-cyan-700 text-sm sm:text-base font-black text-cyan-900 dark:text-cyan-200 leading-relaxed shadow-inner">
-                ❓{" "}
-                {isEnglishView
-                  ? selectedScenario.questionEn
-                  : selectedScenario.questionAr}
-              </div>
-            </div>
-
-            {/* 4 Multiple Choice Options */}
-            <div className="space-y-2.5">
-              <label className="block text-xs font-bold text-slate-600 dark:text-slate-400">
-                اختر الإجابة الصحيحة بناءً على قراءتك للفقرة:
-              </label>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                {(isEnglishView
-                  ? selectedScenario.optionsEn
-                  : selectedScenario.optionsAr
-                ).map((opt, idx) => (
-                  <button
-                    key={idx}
-                    type="button"
-                    onClick={() => handleSelectHumanOption(idx)}
-                    className={`p-4 rounded-2xl text-xs sm:text-sm font-black border text-right transition-all flex items-center justify-between cursor-pointer ${
-                      selectedHumanOption === idx
-                        ? idx === selectedScenario.correctIndex
-                          ? "bg-emerald-950/80 border-emerald-500 text-emerald-300 shadow-lg shadow-emerald-500/20"
-                          : "bg-rose-950/80 border-rose-500 text-rose-600 dark:text-rose-300"
-                        : "bg-slate-50 dark:bg-slate-950 border-slate-200 dark:border-slate-800 text-slate-700 dark:text-slate-300 hover:border-slate-600 hover:text-slate-900 dark:text-white"
-                    }`}
-                  >
-                    <span>{opt}</span>
-                    {selectedHumanOption === idx &&
-                      (idx === selectedScenario.correctIndex ? (
-                        <CheckCircle2 className="w-5 h-5 text-emerald-700 dark:text-emerald-400 shrink-0" />
-                      ) : (
-                        <AlertCircle className="w-5 h-5 text-rose-700 dark:text-rose-400 shrink-0" />
-                      ))}
-                  </button>
-                ))}
-              </div>
+                <button
+                  type="submit"
+                  disabled={captchaInput.length < 4}
+                  className={`w-full max-w-xs mx-auto py-3.5 rounded-2xl font-black text-sm transition-all flex items-center justify-center gap-2 ${
+                    captchaInput.length === 4
+                      ? "bg-gradient-to-r from-cyan-500 to-indigo-600 hover:from-cyan-400 hover:to-indigo-500 text-slate-950 shadow-lg shadow-cyan-500/30 cursor-pointer"
+                      : "bg-slate-800 text-slate-500 cursor-not-allowed border border-slate-700"
+                  }`}
+                >
+                  <Check className="w-4 h-4" />
+                  <span>التحقق من الرمز</span>
+                </button>
+              </form>
             </div>
 
             {/* Verification Success Feedback */}
             {humanVerifiedSuccess && (
               <div className="p-4 rounded-2xl bg-emerald-950/60 border border-emerald-800/80 text-emerald-300 text-xs font-bold flex items-center gap-2.5 animate-fade-in">
-                <CheckCircle2 className="w-5 h-5 text-emerald-700 dark:text-emerald-400 shrink-0" />
+                <CheckCircle2 className="w-5 h-5 text-emerald-400 shrink-0" />
                 <div>
                   تم التحقق البشري بنجاح وبدقة فائقة! يمكنك الآن الانتقال لالتقاط صورتك الشخصية الحية.
                 </div>
