@@ -593,6 +593,18 @@ export async function fetchSupabaseUserProfiles(): Promise<User[] | null> {
   }
 }
 
+// 21.1 Delete User Profile from Supabase
+export async function deleteUserProfileFromSupabase(userId: string): Promise<boolean> {
+  try {
+    const { error } = await supabase.from('users_profile').delete().eq('id', userId);
+    return !error;
+  } catch {
+    return false;
+  }
+}
+
+
+
 
 // 22. Sync Printed Codes Batch to Supabase
 export async function syncPrintedCodesBatchToSupabase(batch: PrintedCodesBatch): Promise<boolean> {

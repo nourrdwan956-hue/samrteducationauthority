@@ -58,6 +58,7 @@ import {
   fetchSupabaseSupportTickets,
   syncUserProfileToSupabase,
   fetchSupabaseUserProfiles,
+  deleteUserProfileFromSupabase,
   syncPrintedCodesBatchToSupabase,
   fetchSupabasePrintedCodesBatches,
   deletePrintedCodesBatchFromSupabase,
@@ -1570,17 +1571,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({
     const targetName = targetUser?.fourPartName || targetUser?.name || 'الطالب';
 
     setUserProfiles((prev) => {
-      const updated = prev.map((u) => {
-        if (u.id === userId) {
-          return {
-            ...u,
-            accountStatus: 'rejected' as const,
-            accountStatusReason: reason || u.accountStatusReason || 'تم مسح وإلغاء قيد الحساب من المنظومة بقرار إداري.',
-            rejectionReason: reason || u.rejectionReason || 'تم مسح وإلغاء قيد الحساب بقرار إداري.',
-          };
-        }
-        return u;
-      });
+      const updated = prev.filter((u) => u.id !== userId);
       try {
         localStorage.setItem("sea_user_profiles", JSON.stringify(updated));
       } catch (e) {
@@ -1589,12 +1580,15 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({
       return updated;
     });
 
+    // Permanently delete from Supabase cloud database so it doesn't reappear on refresh
+    deleteUserProfileFromSupabase(userId).catch(console.warn);
+
     if (currentUser && currentUser.id === userId) {
       setCurrentUser(null);
       setCurrentView("home");
     }
 
-    addToast("success", "تم إلغاء وحذف قيد الطالب نهائياً", `تم مسح قيد الطالب "${targetName}" وإشعاره بسبب الإلغاء.`);
+    addToast("success", "تم إلغاء وحذف قيد الطالب نهائياً", `تم مسح قيد الطالب "${targetName}" من قاعدة البيانات والمنظومة.`);
   };
 
   // Platform Actions (with background Supabase sync)
