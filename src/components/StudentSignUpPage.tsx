@@ -33,6 +33,7 @@ import {
   Clock,
   CheckCircle,
   ExternalLink,
+  Download,
 } from "lucide-react";
 import {
   HumanScenario,
@@ -102,6 +103,7 @@ export const StudentSignUpPage: React.FC = () => {
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const galleryInputRef = useRef<HTMLInputElement>(null);
   const [cameraStream, setCameraStream] = useState<MediaStream | null>(null);
   const [cameraError, setCameraError] = useState("");
   const [isCameraLoading, setIsCameraLoading] = useState(false);
@@ -261,6 +263,26 @@ export const StudentSignUpPage: React.FC = () => {
       fileInputRef.current.value = "";
       fileInputRef.current.click();
     }
+  };
+
+  // Gallery / Device File Upload (Allows picking from mobile photo library or computer files)
+  const handleTriggerGalleryUpload = () => {
+    if (galleryInputRef.current) {
+      galleryInputRef.current.value = "";
+      galleryInputRef.current.click();
+    }
+  };
+
+  // Download / Save photo to device
+  const handleDownloadPhoto = () => {
+    if (!livePhoto) return;
+    const link = document.createElement("a");
+    link.href = livePhoto;
+    link.download = `student-profile-photo-${Date.now()}.jpg`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    addToast("success", "تم تنزيل الصورة بنجاح 📥", "تم حفظ النسخة على جهازك.");
   };
 
   const handleNativePhotoUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -1806,6 +1828,14 @@ export const StudentSignUpPage: React.FC = () => {
               onChange={handleNativePhotoUpload}
               className="hidden"
             />
+            {/* Hidden gallery / file upload input (without capture constraint for mobile gallery selection) */}
+            <input
+              ref={galleryInputRef}
+              type="file"
+              accept="image/*"
+              onChange={handleNativePhotoUpload}
+              className="hidden"
+            />
 
             <div className="mx-auto w-16 h-16 bg-cyan-100 dark:bg-cyan-900/30 text-cyan-600 dark:text-cyan-400 rounded-full flex items-center justify-center mb-2 shadow-lg shadow-cyan-500/20 border border-cyan-500/30">
               <Camera className="w-8 h-8" />
@@ -1937,21 +1967,42 @@ export const StudentSignUpPage: React.FC = () => {
                     </button>
                   </div>
 
-                  {/* Native Device Camera Trigger Button (iPhone/Android/Desktop) */}
-                  <button
-                    type="button"
-                    onClick={handleTriggerNativeCamera}
-                    className="w-full py-3 px-4 bg-slate-900 dark:bg-slate-950 hover:bg-slate-800 text-cyan-400 font-bold text-xs rounded-2xl border border-cyan-500/30 flex items-center justify-center gap-2 transition-colors cursor-pointer"
-                  >
-                    <Smartphone className="w-4 h-4 text-cyan-400" />
-                    <span>التقاط عبر كاميرا الهاتف الأصلية (لكافة الأجهزة والأنظمة) 📱</span>
-                  </button>
+                  {/* Native Device Camera Trigger Button & Gallery Upload */}
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                    <button
+                      type="button"
+                      onClick={handleTriggerNativeCamera}
+                      className="w-full py-3 px-4 bg-slate-900 dark:bg-slate-950 hover:bg-slate-800 text-cyan-400 font-bold text-xs rounded-2xl border border-cyan-500/30 flex items-center justify-center gap-2 transition-colors cursor-pointer"
+                    >
+                      <Smartphone className="w-4 h-4 text-cyan-400" />
+                      <span>كاميرا الهاتف 📱</span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={handleTriggerGalleryUpload}
+                      className="w-full py-3 px-4 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 text-slate-800 dark:text-slate-200 font-bold text-xs rounded-2xl border border-slate-300 dark:border-slate-700 flex items-center justify-center gap-2 transition-colors cursor-pointer"
+                    >
+                      <Upload className="w-4 h-4 text-cyan-500" />
+                      <span>رفع من الاستوديو/الملفات 📁</span>
+                    </button>
+                  </div>
                 </>
               ) : (
                 <div className="space-y-3">
-                  <div className="p-3 bg-emerald-950/60 border border-emerald-800/80 rounded-2xl text-emerald-300 text-xs font-bold flex items-center justify-center gap-2">
-                    <CheckCircle2 className="w-4 h-4 text-emerald-400" />
-                    <span>تم التقاط صورتك بنجاح! راجع الصورة وتأكد من وضوحها.</span>
+                  <div className="p-3 bg-emerald-950/60 border border-emerald-800/80 rounded-2xl text-emerald-300 text-xs font-bold flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <CheckCircle2 className="w-4 h-4 text-emerald-400" />
+                      <span>تم التقاط صورتك بنجاح!</span>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={handleDownloadPhoto}
+                      className="px-3 py-1.5 bg-cyan-500 hover:bg-cyan-400 text-slate-950 font-black text-xs rounded-xl flex items-center gap-1.5 transition-colors shadow cursor-pointer"
+                      title="تنزيل الصورة لجهازك"
+                    >
+                      <Download className="w-3.5 h-3.5" />
+                      <span>تنزيل 📥</span>
+                    </button>
                   </div>
 
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
