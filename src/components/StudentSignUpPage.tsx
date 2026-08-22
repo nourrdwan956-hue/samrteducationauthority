@@ -1698,7 +1698,7 @@ export const StudentSignUpPage: React.FC = () => {
                 </span>
 
                 {/* Rendered Captcha Code with styling and skew */}
-                <div className="py-4 px-8 rounded-2xl bg-gradient-to-r from-slate-900 via-cyan-950 to-slate-900 border border-cyan-500/40 shadow-inner flex items-center justify-center gap-3 select-none">
+                <div className="py-4 px-8 rounded-2xl bg-gradient-to-r from-slate-900 via-cyan-950 to-slate-900 border border-cyan-500/40 shadow-inner flex items-center justify-center gap-3 select-none" dir="ltr">
                   {captchaCode.split("").map((digit, i) => (
                     <span
                       key={i}
@@ -1713,7 +1713,7 @@ export const StudentSignUpPage: React.FC = () => {
                 </div>
 
                 <p className="text-xs text-slate-400 font-medium">
-                  انظر إلى الأرقام أعلاه واكتبها مطابقة تماماً في الحقل أدناه:
+                  انظر إلى الأرقام أعلاه واكتبها مطابقة تماماً في الحقل أدناه (من اليسار لليمين):
                 </p>
               </div>
 
@@ -1722,10 +1722,11 @@ export const StudentSignUpPage: React.FC = () => {
                 <div className="relative max-w-xs mx-auto">
                   <input
                     type="text"
+                    dir="ltr"
                     maxLength={4}
                     required
                     autoFocus
-                    placeholder="أدخل 4 أرقام"
+                    placeholder="1234"
                     value={captchaInput}
                     onChange={(e) => setCaptchaInput(e.target.value.replace(/\D/g, "").slice(0, 4))}
                     className="w-full px-6 py-4 rounded-2xl bg-slate-900 border-2 border-cyan-500/60 text-white text-center text-2xl font-black font-mono tracking-[0.5em] focus:border-cyan-400 focus:outline-none shadow-lg placeholder:text-slate-600 placeholder:tracking-normal placeholder:text-sm"
