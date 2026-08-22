@@ -211,33 +211,46 @@ export const StudentSignUpPage: React.FC = () => {
 
   // Instant Snapshot from Live Stream
   const executeSnap = () => {
-    if (videoRef.current && canvasRef.current) {
-      const video = videoRef.current;
-      const canvas = canvasRef.current;
-      
-      const width = video.videoWidth || 640;
-      const height = video.videoHeight || 480;
-      canvas.width = width;
-      canvas.height = height;
-
-      const ctx = canvas.getContext("2d");
-      if (ctx) {
-        // Save state and mirror horizontally to match selfie view
-        ctx.save();
-        ctx.translate(width, 0);
-        ctx.scale(-1, 1);
-        ctx.drawImage(video, 0, 0, width, height);
-        ctx.restore();
-
-        const dataUrl = canvas.toDataURL("image/jpeg", 0.85);
+    try {
+      if (videoRef.current && canvasRef.current) {
+        const video = videoRef.current;
+        const canvas = canvasRef.current;
         
-        // Trigger Shutter Flash Effect
-        setIsFlashing(true);
-        setTimeout(() => setIsFlashing(false), 250);
+        const width = video.videoWidth || 640;
+        const height = video.videoHeight || 480;
 
-        setLivePhoto(dataUrl);
-        stopCamera();
+        if (width <= 0 || height <= 0) {
+          throw new Error("أبعاد تدفق الكاميرا غير صالحة للالتقاط. يرجى محاولة الرفع من الاستوديو.");
+        }
+
+        canvas.width = width;
+        canvas.height = height;
+
+        const ctx = canvas.getContext("2d");
+        if (ctx) {
+          // Save state and mirror horizontally to match selfie view
+          ctx.save();
+          ctx.translate(width, 0);
+          ctx.scale(-1, 1);
+          ctx.drawImage(video, 0, 0, width, height);
+          ctx.restore();
+
+          const dataUrl = canvas.toDataURL("image/jpeg", 0.85);
+          
+          // Trigger Shutter Flash Effect
+          setIsFlashing(true);
+          setTimeout(() => setIsFlashing(false), 250);
+
+          setLivePhoto(dataUrl);
+          stopCamera();
+          addToast("success", "تم التقاط الصورة بنجاح! 📸", "يرجى مراجعة صورتك قبل تقديم الاستمارة.");
+        } else {
+          throw new Error("تعذر تهيئة محرك معالجة الصور.");
+        }
       }
+    } catch (err: any) {
+      console.error("Snap error:", err);
+      addToast("error", "فشل التقاط الصورة", err.message || "حدث خطأ أثناء تشغيل الكاميرا.");
     }
   };
 
@@ -286,42 +299,76 @@ export const StudentSignUpPage: React.FC = () => {
   };
 
   const handleNativePhotoUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
+    try {
+      const file = e.target.files?.[0];
+      if (!file) return;
 
-    const reader = new FileReader();
-    reader.onload = (event) => {
-      const img = new window.Image();
+      // Ensure the file is an image
+      if (!file.type.startsWith("image/")) {
+        addToast("error", "ملف غير صالح", "يرجى اختيار ملف صورة صالح فقط.");
+        return;
+      }
+
+      // Using URL.createObjectURL is 99% more memory efficient than FileReader.readAsDataURL
+      // on mobile browsers because it creates a tiny temporary reference URL instead of a huge string
+      const objectUrl = URL.createObjectURL(file);
+      const img = new Image();
+
       img.onload = () => {
-        const canvas = document.createElement("canvas");
-        let width = img.width;
-        let height = img.height;
-        const maxDimension = 900;
+        try {
+          const canvas = document.createElement("canvas");
+          let width = img.width || 600;
+          let height = img.height || 600;
 
-        if (width > maxDimension || height > maxDimension) {
-          if (width > height) {
-            height = Math.round((height * maxDimension) / width);
-            width = maxDimension;
-          } else {
-            width = Math.round((width * maxDimension) / height);
-            height = maxDimension;
+          if (width <= 0 || height <= 0) {
+            throw new Error("أبعاد الصورة غير صالحة.");
           }
-        }
 
-        canvas.width = width;
-        canvas.height = height;
-        const ctx = canvas.getContext("2d");
-        if (ctx) {
-          ctx.drawImage(img, 0, 0, width, height);
-          const compressedDataUrl = canvas.toDataURL("image/jpeg", 0.85);
-          setLivePhoto(compressedDataUrl);
-          stopCamera();
-          addToast("success", "تم التقاط الصورة بنجاح! 📸", "يرجى مراجعة صورتك قبل إرسال الطلب.");
+          // Target a reasonable profile picture size to keep DB storage optimized
+          const maxDimension = 800;
+          if (width > maxDimension || height > maxDimension) {
+            if (width > height) {
+              height = Math.round((height * maxDimension) / width);
+              width = maxDimension;
+            } else {
+              width = Math.round((width * maxDimension) / height);
+              height = maxDimension;
+            }
+          }
+
+          canvas.width = width;
+          canvas.height = height;
+          const ctx = canvas.getContext("2d");
+
+          if (ctx) {
+            ctx.drawImage(img, 0, 0, width, height);
+            // Compress to JPEG with good balance of quality and size
+            const compressedDataUrl = canvas.toDataURL("image/jpeg", 0.85);
+            setLivePhoto(compressedDataUrl);
+            stopCamera();
+            addToast("success", "تم تحميل الصورة بنجاح! 📸", "يرجى مراجعة الصورة للتأكد من وضوحها قبل التقديم.");
+          } else {
+            throw new Error("فشل معالج الصور في معالجة الملف.");
+          }
+        } catch (err: any) {
+          console.error("Canvas manipulation error:", err);
+          addToast("error", "فشل تنسيق الصورة", err.message || "حدث خطأ أثناء معالجة الصورة.");
+        } finally {
+          // Free resources immediately to avoid leaks
+          URL.revokeObjectURL(objectUrl);
         }
       };
-      img.src = event.target?.result as string;
-    };
-    reader.readAsDataURL(file);
+
+      img.onerror = () => {
+        URL.revokeObjectURL(objectUrl);
+        addToast("error", "فشل قراءة الملف", "الملف المرفوع قد يكون تالفاً أو ليس صورة صالحة.");
+      };
+
+      img.src = objectUrl;
+    } catch (err: any) {
+      console.error("Outer native upload error:", err);
+      addToast("error", "حدث خطأ غير متوقع", "فشل تحميل الصورة من الجهاز.");
+    }
   };
 
   const handleRetakePhoto = () => {
