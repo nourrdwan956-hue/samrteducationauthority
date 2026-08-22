@@ -513,13 +513,15 @@ export async function fetchSupabaseSupportTickets(): Promise<SupportTicket[] | n
 // 20. Sync User Profile to Supabase
 export async function syncUserProfileToSupabase(user: User): Promise<boolean> {
   try {
+    const avatarUrl = user.avatar || user.photoUrl || '';
     const row: Record<string, any> = {
       id: user.id,
       email: user.email,
       name: user.name,
       role: user.role,
       phone: user.phone || '',
-      avatar: user.avatar || '',
+      avatar: avatarUrl,
+      photo_url: avatarUrl,
       platform_id: user.platformId || '',
       grade_level: user.gradeLevel || '',
       enrolled_course_ids: user.enrolledCourseIds || [],
@@ -557,37 +559,41 @@ export async function fetchSupabaseUserProfiles(): Promise<User[] | null> {
     const { data, error } = await supabase.from('users_profile').select('*').order('created_at', { ascending: false });
     if (error || !data) return null;
 
-    return data.map((row: any) => ({
-      id: row.id,
-      email: row.email,
-      name: row.name,
-      role: row.role as any,
-      phone: row.phone,
-      avatar: row.avatar,
-      platformId: row.platform_id,
-      gradeLevel: row.grade_level,
-      enrolledCourseIds: Array.isArray(row.enrolled_course_ids) ? row.enrolled_course_ids : [],
-      walletBalance: Number(row.wallet_balance || 0),
-      createdAt: row.created_at,
-      fourPartName: row.four_part_name || row.name,
-      nationalId: row.national_id,
-      guardianPhone: row.guardian_phone,
-      guardianJob: row.guardian_job,
-      guardianRelation: row.guardian_relation,
-      motherPhone: row.mother_phone,
-      governorate: row.governorate,
-      city: row.city,
-      schoolName: row.school_name,
-      academicSection: row.academic_section,
-      educationSystem: row.education_system,
-      studentCode: row.student_code,
-      isEmailVerified: row.is_email_verified,
-      accountStatus: row.account_status,
-      deviceFingerprint: row.device_fingerprint,
-      birthDate: row.birth_date,
-      gender: row.gender,
-      emergencyNotes: row.emergency_notes,
-    }));
+    return data.map((row: any) => {
+      const img = row.avatar || row.photo_url || '';
+      return {
+        id: row.id,
+        email: row.email,
+        name: row.name,
+        role: row.role as any,
+        phone: row.phone,
+        avatar: img,
+        photoUrl: img,
+        platformId: row.platform_id,
+        gradeLevel: row.grade_level,
+        enrolledCourseIds: Array.isArray(row.enrolled_course_ids) ? row.enrolled_course_ids : [],
+        walletBalance: Number(row.wallet_balance || 0),
+        createdAt: row.created_at,
+        fourPartName: row.four_part_name || row.name,
+        nationalId: row.national_id,
+        guardianPhone: row.guardian_phone,
+        guardianJob: row.guardian_job,
+        guardianRelation: row.guardian_relation,
+        motherPhone: row.mother_phone,
+        governorate: row.governorate,
+        city: row.city,
+        schoolName: row.school_name,
+        academicSection: row.academic_section,
+        educationSystem: row.education_system,
+        studentCode: row.student_code,
+        isEmailVerified: row.is_email_verified,
+        accountStatus: row.account_status,
+        deviceFingerprint: row.device_fingerprint,
+        birthDate: row.birth_date,
+        gender: row.gender,
+        emergencyNotes: row.emergency_notes,
+      };
+    });
   } catch {
     return null;
   }
