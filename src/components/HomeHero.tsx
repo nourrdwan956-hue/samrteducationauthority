@@ -55,6 +55,25 @@ export const HomeHero: React.FC = () => {
   const [selectedGradeFilter, setSelectedGradeFilter] = useState<string>('all');
   const [activeFaqIndex, setActiveFaqIndex] = useState<number | null>(null);
 
+  // Check if a student recently submitted their registration and is waiting for review
+  const pendingStudent = useMemo(() => {
+    if (currentUser?.accountStatus === 'pending_review') {
+      return {
+        name: currentUser.name,
+        studentCode: currentUser.studentCode,
+      };
+    }
+    try {
+      const raw = localStorage.getItem('sea_pending_student');
+      if (raw) {
+        return JSON.parse(raw);
+      }
+    } catch (e) {
+      return null;
+    }
+    return null;
+  }, [currentUser]);
+
   const CONTACT_NUMBER = '011';
   const WHATSAPP_LINK_INQUIRIES = `https://wa.me/2011?text=${encodeURIComponent('السلام عليكم، أود الاستفسار عن تفاصيل منظومة SEA التعليمية')}`;
 
@@ -182,7 +201,38 @@ export const HomeHero: React.FC = () => {
       {/* ========================================================================= */}
       {/* SECTION 1: OFFICIAL INSTITUTIONAL HERO HEADER */}
       {/* ========================================================================= */}
-      <div className="relative pt-12 pb-6 overflow-hidden">
+      <div className="relative pt-6 pb-6 overflow-hidden">
+        {/* Pending Review Alert Banner if student submitted registration */}
+        {pendingStudent && (
+          <div className="mb-8 max-w-4xl mx-auto p-5 rounded-3xl bg-amber-500/10 dark:bg-amber-500/15 border-2 border-amber-500/40 text-amber-900 dark:text-amber-200 shadow-xl backdrop-blur-md animate-fade-in">
+            <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
+              <div className="flex items-center gap-3.5">
+                <div className="w-12 h-12 rounded-2xl bg-amber-500/20 text-amber-500 flex items-center justify-center shrink-0 border border-amber-500/30">
+                  <ShieldCheck className="w-6 h-6" />
+                </div>
+                <div className="text-right">
+                  <div className="flex items-center gap-2">
+                    <span className="text-sm font-black text-slate-900 dark:text-white">
+                      طلب مراجعة بياناتك قيد الانتظار
+                    </span>
+                    <span className="px-2 py-0.5 rounded-md bg-amber-500 text-slate-950 font-black text-[10px]">
+                      قيد المراجعة ⏳
+                    </span>
+                  </div>
+                  <p className="text-xs font-bold text-amber-800 dark:text-amber-300 mt-1">
+                    سيتم فحص بياناتك ومراجعتها، والرد عليك خلال مدة تبدأ من ساعة وحتى 48 ساعة بحد أقصى.
+                  </p>
+                </div>
+              </div>
+              <div className="shrink-0 flex items-center gap-2">
+                <span className="text-[11px] font-mono font-bold text-slate-600 dark:text-slate-400 bg-white/60 dark:bg-slate-950/60 px-3 py-1.5 rounded-xl border border-amber-500/30">
+                  {pendingStudent.name ? `طالب: ${pendingStudent.name.split(' ')[0]}` : 'طلب جديد'}
+                </span>
+              </div>
+            </div>
+          </div>
+        )}
+
         <div className="relative z-10 flex flex-col items-center text-center space-y-10 max-w-5xl mx-auto">
           
           {/* Institutional Badge with Crest Aesthetic */}

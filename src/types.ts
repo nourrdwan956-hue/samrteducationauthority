@@ -1,4 +1,4 @@
-export type UserRole = 'super_admin' | 'teacher' | 'student';
+export type UserRole = "super_admin" | "teacher" | "student";
 
 export interface User {
   id: string;
@@ -16,25 +16,30 @@ export interface User {
   // Comprehensive Student Enrollment & Security Data
   fourPartName?: string;
   nationalId?: string;
+  photoUrl?: string;
   guardianPhone?: string;
   guardianJob?: string;
-  guardianRelation?: 'father' | 'mother' | 'brother' | 'uncle' | 'guardian';
+  guardianRelation?: "father" | "mother" | "brother" | "uncle" | "guardian";
   motherPhone?: string;
   governorate?: string;
   city?: string;
   schoolName?: string;
-  academicSection?: 'science_bio' | 'science_math' | 'literary' | 'general'; // علمي علوم / علمي رياضة / أدبي / عام
-  educationSystem?: 'general_arabic' | 'languages_experimental' | 'azhar' | 'international_ig_sat'; // عربي / لغات / أزهر / دولي
+  academicSection?: "science_bio" | "science_math" | "literary" | "general"; // علمي علوم / علمي رياضة / أدبي / عام
+  educationSystem?:
+    | "general_arabic"
+    | "languages_experimental"
+    | "azhar"
+    | "international_ig_sat"; // عربي / لغات / أزهر / دولي
   studentCode?: string; // e.g. SEA-2026-98421
   isEmailVerified?: boolean;
-  accountStatus?: 'verified' | 'pending_verification' | 'suspended';
+  accountStatus?: "verified" | "pending_verification" | "pending_review" | "active" | "suspended" | "banned";
   deviceFingerprint?: string;
   primaryDeviceId?: string;
   secondaryDeviceId?: string;
   primaryDevice?: {
     id: string;
     name: string;
-    type: 'desktop' | 'mobile' | 'tablet';
+    type: "desktop" | "mobile" | "tablet";
     browser: string;
     os: string;
     registeredAt: string;
@@ -43,25 +48,25 @@ export interface User {
   secondaryDevice?: {
     id: string;
     name: string;
-    type: 'desktop' | 'mobile' | 'tablet';
+    type: "desktop" | "mobile" | "tablet";
     browser: string;
     os: string;
     registeredAt: string;
     lastActiveAt: string;
   };
   birthDate?: string;
-  gender?: 'male' | 'female';
+  gender?: "male" | "female";
   emergencyNotes?: string;
 }
 
-export type PlatformStatus = 'active' | 'suspended' | 'maintenance' | 'draft';
+export type PlatformStatus = "active" | "suspended" | "maintenance" | "draft";
 
 export interface EducationalPlatform {
   id: string;
   name: string;
   slug: string;
   subject: string;
-  subjectCategory: 'languages' | 'science' | 'humanities' | 'math' | 'general';
+  subjectCategory: "languages" | "science" | "humanities" | "math" | "general";
   teacherName: string;
   teacherTitle: string;
   teacherEmail: string;
@@ -89,8 +94,8 @@ export interface EducationalPlatform {
   createdAt: string;
 }
 
-export type EducationalStage = 'primary' | 'preparatory' | 'secondary';
-export type CurriculumType = 'general' | 'azhar' | 'international';
+export type EducationalStage = "primary" | "preparatory" | "secondary";
+export type CurriculumType = "general" | "azhar" | "international";
 
 export interface LiveSession {
   id: string;
@@ -100,10 +105,10 @@ export interface LiveSession {
   date: string;
   time: string;
   durationMinutes: number;
-  platform: 'youtube_live' | 'zoom' | 'jitsi';
+  platform: "youtube_live" | "zoom" | "jitsi";
   meetingUrl: string;
   youtubeVideoId?: string;
-  status: 'upcoming' | 'live' | 'completed';
+  status: "upcoming" | "live" | "completed";
   description?: string;
   createdAt: string;
 }
@@ -118,7 +123,7 @@ export interface Course {
   subject: string;
   stage?: EducationalStage;
   curriculumType?: CurriculumType;
-  term?: 'term1' | 'term2' | 'final_revision' | 'full_year';
+  term?: "term1" | "term2" | "final_revision" | "full_year";
   gradeLevel: string; // e.g. "الصف الأول الثانوي (عام)", "الصف الثالث الإعدادي (أزهر)"
   price: number;
   originalPrice?: number;
@@ -128,7 +133,7 @@ export interface Course {
   lessonsCount: number;
   enrolledCount: number;
   rating: number;
-  status: 'published' | 'draft';
+  status: "published" | "draft";
   scheduledPublishDate?: string;
   tags: string[];
   requirements?: string[];
@@ -145,7 +150,8 @@ export interface Course {
   }[];
 }
 
-export type LessonType = 'video' | 'pdf' | 'exam' | 'assignment' | 'live_session';
+export type LessonType =
+  "video" | "pdf" | "exam" | "assignment" | "live_session";
 
 export interface Lesson {
   id: string;
@@ -157,7 +163,7 @@ export interface Lesson {
   order: number;
   isFreePreview?: boolean;
   isFree?: boolean;
-  status?: 'published' | 'draft';
+  status?: "published" | "draft";
   isPublished?: boolean;
   isScheduled?: boolean;
   scheduledDate?: string;
@@ -167,7 +173,7 @@ export interface Lesson {
   hasWatermark?: boolean;
   notes?: string;
   youtubeVideoId?: string;
-  playerMode?: 'platform' | 'youtube';
+  playerMode?: "platform" | "youtube";
   pdfUrl?: string;
   pdfTitle?: string;
   examId?: string;
@@ -196,10 +202,10 @@ export interface CourseStudentEnrollee {
   progressPercent: number;
   completedLessonsCount: number;
   totalLessonsCount: number;
-  status: 'active' | 'suspended';
+  status: "active" | "suspended";
   lastActive: string;
   paidAmount: number;
-  subscriptionMethod: 'online' | 'coupon_center' | 'free_grant';
+  subscriptionMethod: "online" | "coupon_center" | "free_grant";
 }
 
 export interface CourseAnnouncement {
@@ -217,7 +223,7 @@ export interface CourseModule {
   title: string;
   description?: string;
   order: number;
-  status?: 'published' | 'draft' | 'scheduled';
+  status?: "published" | "draft" | "scheduled";
   scheduledPublishDate?: string;
   isFree?: boolean;
   isRequiredCompletion?: boolean;
@@ -225,16 +231,16 @@ export interface CourseModule {
 }
 
 export type QuestionType =
-  | 'mcq'
-  | 'true_false'
-  | 'fill_blank'
-  | 'short_answer'
-  | 'essay'
-  | 'matching'
-  | 'ordering'
-  | 'listening'
-  | 'passage'
-  | 'error_correction';
+  | "mcq"
+  | "true_false"
+  | "fill_blank"
+  | "short_answer"
+  | "essay"
+  | "matching"
+  | "ordering"
+  | "listening"
+  | "passage"
+  | "error_correction";
 
 export interface MatchingPair {
   id: string;
@@ -301,7 +307,7 @@ export interface Exam {
   maxViolationsAllowed?: number;
   preventCopyPaste?: boolean;
   attemptsCount?: number;
-  status?: 'published' | 'draft';
+  status?: "published" | "draft";
   isPublished?: boolean;
   isScheduled?: boolean;
   scheduledStartDate?: string;
@@ -341,7 +347,7 @@ export interface StudentNote {
   courseId: string;
   timestampSeconds: number;
   noteText: string;
-  color?: 'amber' | 'cyan' | 'rose' | 'emerald' | 'purple' | 'sky' | 'orange';
+  color?: "amber" | "cyan" | "rose" | "emerald" | "purple" | "sky" | "orange";
   createdAt: string;
   updatedAt?: string;
 }
@@ -350,7 +356,7 @@ export interface LessonQuestionReply {
   id: string;
   authorId: string;
   authorName: string;
-  authorRole: 'teacher' | 'student' | 'super_admin';
+  authorRole: "teacher" | "student" | "super_admin";
   authorAvatar?: string;
   message: string;
   createdAt: string;
@@ -370,7 +376,7 @@ export interface LessonQuestion {
   studentAvatar?: string;
   questionText: string;
   timestampSeconds?: number;
-  status: 'pending' | 'answered' | 'closed';
+  status: "pending" | "answered" | "closed";
   replies: LessonQuestionReply[];
   createdAt: string;
   updatedAt: string;
@@ -394,8 +400,8 @@ export interface StudyTask {
   description?: string;
   dueDate: string; // ISO date string
   dueTime?: string; // HH:mm
-  status: 'pending' | 'in_progress' | 'completed';
-  priority: 'low' | 'medium' | 'high';
+  status: "pending" | "in_progress" | "completed";
+  priority: "low" | "medium" | "high";
   courseId?: string; // Optional: link to a specific course
   createdAt: string;
 }
@@ -407,9 +413,9 @@ export interface PlatformOrderRequest {
   applicantPhone: string;
   subject: string;
   desiredPlatformName: string;
-  planType: 'monthly' | 'annual' | 'custom_purchase';
+  planType: "monthly" | "annual" | "custom_purchase";
   notes: string;
-  status: 'pending' | 'approved' | 'rejected';
+  status: "pending" | "approved" | "rejected";
   createdAt: string;
 }
 
@@ -433,12 +439,21 @@ export interface SupportTicket {
   studentName?: string;
   studentEmail?: string;
   studentPhone?: string;
-  category: 'server_upgrade' | 'financial_withdrawal' | 'student_issue' | 'feature_request' | 'technical_bug' | 'technical' | 'billing' | 'academic' | 'other';
+  category:
+    | "server_upgrade"
+    | "financial_withdrawal"
+    | "student_issue"
+    | "feature_request"
+    | "technical_bug"
+    | "technical"
+    | "billing"
+    | "academic"
+    | "other";
   title: string;
   message: string;
-  severity?: 'low' | 'medium' | 'high';
+  severity?: "low" | "medium" | "high";
   attachmentUrl?: string;
-  status: 'pending' | 'in_progress' | 'resolved' | 'rejected' | 'open';
+  status: "pending" | "in_progress" | "resolved" | "rejected" | "open";
   adminResponse?: string;
   adminReply?: string;
   createdAt: string;
@@ -452,11 +467,11 @@ export interface DepositRequest {
   studentEmail: string;
   studentPhone?: string;
   amount: number;
-  paymentMethod: 'vodafone' | 'instapay' | 'fawry' | 'manual';
+  paymentMethod: "vodafone" | "instapay" | "fawry" | "manual";
   senderNumber?: string;
   transactionId?: string;
   screenshotUrl?: string;
-  status: 'pending' | 'approved' | 'rejected';
+  status: "pending" | "approved" | "rejected";
   rejectionReason?: string;
   createdAt: string;
   updatedAt?: string;
@@ -485,7 +500,7 @@ export interface BankQuestion {
   stage?: EducationalStage;
   gradeLevel?: string;
   topic: string; // e.g. "Grammar - Past Simple", "قوانين نيوتن", "البلاغة"
-  difficulty: 'easy' | 'medium' | 'hard';
+  difficulty: "easy" | "medium" | "hard";
   tags?: string[];
   type: QuestionType;
   prompt: string;
@@ -535,7 +550,7 @@ export interface Assignment {
   showModelAnswerAfterSubmission: boolean;
   autoGrading: boolean;
   dueDate?: string;
-  status?: 'published' | 'draft';
+  status?: "published" | "draft";
   isPublished?: boolean;
   createdAt: string;
 }
@@ -574,7 +589,7 @@ export interface CourseAccessCode {
   batchId: string;
   coursePrice: number;
   platformFeeAmount: number; // 15% of course price
-  status: 'active' | 'redeemed' | 'cancelled';
+  status: "active" | "redeemed" | "cancelled";
   redeemedByStudentId?: string;
   redeemedByStudentName?: string;
   redeemedAt?: string;
@@ -598,10 +613,9 @@ export interface PrintedCodesBatch {
   paidCodesCount: number; // e.g. 10 codes paid to admin
   settledAmount: number; // paidCodesCount * (coursePrice * 0.15)
   remainingDueAmount: number; // (quantity - paidCodesCount) * (coursePrice * 0.15)
-  status: 'unpaid' | 'partially_paid' | 'settled';
+  status: "unpaid" | "partially_paid" | "settled";
   codes: CourseAccessCode[];
   notes?: string;
   createdAt: string;
   updatedAt?: string;
 }
-
