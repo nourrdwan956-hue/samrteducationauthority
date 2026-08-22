@@ -1837,8 +1837,8 @@ export const StudentSignUpPage: React.FC = () => {
               className="hidden"
             />
 
-            <div className="mx-auto w-16 h-16 bg-cyan-100 dark:bg-cyan-900/30 text-cyan-600 dark:text-cyan-400 rounded-full flex items-center justify-center mb-2 shadow-lg shadow-cyan-500/20 border border-cyan-500/30">
-              <Camera className="w-8 h-8" />
+            <div className="mx-auto w-12 h-12 sm:w-16 sm:h-16 bg-cyan-100 dark:bg-cyan-900/30 text-cyan-600 dark:text-cyan-400 rounded-full flex items-center justify-center mb-2 shadow-lg shadow-cyan-500/20 border border-cyan-500/30">
+              <Camera className="w-6 h-6 sm:w-8 sm:h-8" />
             </div>
 
             <div>
@@ -2046,9 +2046,9 @@ export const StudentSignUpPage: React.FC = () => {
         {step === "pending_review" && (
           <div className="space-y-8 animate-fade-in text-center pb-8 max-w-xl mx-auto">
             {/* Status Pulse Badge */}
-            <div className="mx-auto w-20 h-20 bg-amber-500/10 dark:bg-amber-500/20 text-amber-500 rounded-3xl border border-amber-500/30 flex items-center justify-center shadow-xl relative">
-              <ShieldCheck className="w-10 h-10 text-amber-500" />
-              <div className="absolute -top-1 -right-1 w-4 h-4 bg-amber-500 rounded-full border-2 border-white dark:border-slate-900 animate-ping" />
+            <div className="mx-auto w-14 h-14 sm:w-20 sm:h-20 bg-amber-500/10 dark:bg-amber-500/20 text-amber-500 rounded-2xl sm:rounded-3xl border border-amber-500/30 flex items-center justify-center shadow-xl relative">
+              <ShieldCheck className="w-7 h-7 sm:w-10 sm:h-10 text-amber-500" />
+              <div className="absolute -top-1 -right-1 w-3.5 h-3.5 sm:w-4 sm:h-4 bg-amber-500 rounded-full border-2 border-white dark:border-slate-900 animate-ping" />
             </div>
 
             <div className="space-y-2">
@@ -2151,8 +2151,8 @@ export const StudentSignUpPage: React.FC = () => {
 
         {step === "complete" && (
           <div className="py-6 space-y-8 animate-fade-in text-center max-w-xl mx-auto">
-            <div className="w-20 h-20 rounded-full bg-gradient-to-br from-emerald-400 to-teal-500 text-slate-950 flex items-center justify-center mx-auto shadow-2xl shadow-emerald-500/30">
-              <CheckCircle2 className="w-12 h-12 stroke-[2.5]" />
+            <div className="w-14 h-14 sm:w-20 sm:h-20 rounded-full bg-gradient-to-br from-emerald-400 to-teal-500 text-slate-950 flex items-center justify-center mx-auto shadow-2xl shadow-emerald-500/30">
+              <CheckCircle2 className="w-8 h-8 sm:w-12 sm:h-12 stroke-[2.5]" />
             </div>
 
             <div className="space-y-2">
