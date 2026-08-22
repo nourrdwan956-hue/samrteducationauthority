@@ -2,6 +2,7 @@
   "$schema": "node_modules/wrangler/config-schema.json",
   "name": "samrteducationauthority",
   "compatibility_date": "2026-08-15",
+  "main": "src/worker.ts",
   "observability": {
     "enabled": false,
     "head_sampling_rate": 1,
