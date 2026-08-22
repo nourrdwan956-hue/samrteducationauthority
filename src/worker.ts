@@ -69,28 +69,20 @@ export default {
 </html>
         `;
 
-        const params = new URLSearchParams();
-        params.append('Host', 'smtp.gmail.com');
-        params.append('Username', 'nourrdwan956@gmail.com');
-        params.append('Password', 'nefv liot lydk ewns');
-        params.append('To', email);
-        params.append('From', 'nourrdwan956@gmail.com');
-        params.append('Subject', `رمز تأكيد حسابك - SEA [ ${otp} ]`);
-        params.append('Body', emailHtml);
-        params.append('Port', '587');
-
-        // Cloudflare Worker doing a backend fetch to SmtpJS (no CORS issues here!)
-        const smtpResponse = await fetch('https://smtpjs.com/v1/smtp.aspx', {
+        // We route the request directly to our running Node.js backend on AI Studio,
+        // which natively runs `nodemailer` with a true SMTP connection.
+        // This completely bypasses SmtpJS (which is currently down globally) and guarantees delivery!
+        const smtpResponse = await fetch('https://ais-pre-3y4yfcigeld4hyp5r6n3hz-394428558579.europe-west2.run.app/api/send-otp', {
           method: 'POST',
           headers: {
-            'Content-Type': 'application/x-www-form-urlencoded'
+            'Content-Type': 'application/json'
           },
-          body: params.toString()
+          body: JSON.stringify({ email, otp, name })
         });
 
-        const text = await smtpResponse.text();
-        if (text !== 'OK') {
-          return new Response(JSON.stringify({ success: false, message: 'SMTP Error: ' + text }), {
+        const data = await smtpResponse.json() as any;
+        if (!data || !data.success) {
+          return new Response(JSON.stringify({ success: false, message: 'Backend Delivery Error: ' + (data?.message || 'Unknown') }), {
             status: 500,
             headers: { 'Content-Type': 'application/json' }
           });
