@@ -51,22 +51,22 @@ export const Navbar: React.FC = () => {
           isLight ? 'bg-white/80 border-slate-200 shadow-sm' : 'bg-[#060913]/80 border-slate-800 shadow-lg'
         }`}
       >
-        <div className="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8">
-          <div className="flex justify-between items-center h-16 sm:h-20">
+        <div className="max-w-7xl mx-auto px-2.5 sm:px-6 lg:px-8">
+          <div className="flex justify-between items-center h-13 sm:h-16">
             {/* Logo Area */}
-            <div className="flex items-center gap-4">
+            <div className="flex items-center gap-3">
               <button
                 onClick={() => setCurrentView('home')}
-                className="flex items-center gap-3 cursor-pointer group"
+                className="flex items-center gap-2.5 cursor-pointer group"
               >
-                <div className="relative flex items-center justify-center w-12 h-12 rounded-2xl shadow-lg shadow-cyan-500/25 group-hover:scale-105 transition-transform overflow-hidden bg-slate-100 dark:bg-slate-900 border border-slate-200 dark:border-slate-800">
+                <div className="relative flex items-center justify-center w-9 h-9 sm:w-10 sm:h-10 rounded-xl shadow-md shadow-cyan-500/20 group-hover:scale-105 transition-transform overflow-hidden bg-slate-100 dark:bg-slate-900 border border-slate-200 dark:border-slate-800">
                   <img src="/logo.png" alt="SEA Logo" className="w-full h-full object-cover" />
                 </div>
                 <div className="flex flex-col items-start hidden sm:flex">
-                  <span className={`text-base font-black tracking-tight leading-none ${isLight ? 'text-slate-900' : 'text-white'}`}>
+                  <span className={`text-sm font-black tracking-tight leading-none ${isLight ? 'text-slate-900' : 'text-white'}`}>
                     طاقم تدريس عالي
                   </span>
-                  <span className="text-[10px] font-bold text-cyan-500 tracking-wider mt-1">
+                  <span className="text-[9px] font-bold text-cyan-500 tracking-wider mt-0.5">
                     بالتعاون مع Smart Education Authority (SEA)
                   </span>
                 </div>

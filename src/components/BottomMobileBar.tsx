@@ -89,14 +89,14 @@ export const BottomMobileBar: React.FC = () => {
           : 'bg-[#060913]/95 border-slate-800/90 shadow-[0_-4px_25px_rgba(0,0,0,0.5)] text-slate-200'
       }`}
     >
-      <div className="flex items-center justify-around px-2 py-2 max-w-lg mx-auto">
+      <div className="flex items-center justify-around px-1 py-1 max-w-md mx-auto">
         {navItems.map((item) => {
           const Icon = item.icon;
           return (
             <button
               key={item.id}
               onClick={item.onClick}
-              className={`flex flex-col items-center justify-center min-w-[54px] py-1 px-1.5 rounded-xl transition-all relative cursor-pointer ${
+              className={`flex flex-col items-center justify-center min-w-[48px] py-0.5 px-1 rounded-lg transition-all relative cursor-pointer ${
                 item.isActive
                   ? isLight
                     ? 'text-cyan-700 font-black'
@@ -107,12 +107,12 @@ export const BottomMobileBar: React.FC = () => {
               }`}
             >
               {item.badge && (
-                <span className="absolute -top-1 right-2 px-1 py-0.2 rounded-full text-[8px] font-black bg-emerald-500 text-slate-950">
+                <span className="absolute -top-1 right-1 px-1 py-[0.5px] rounded-full text-[7px] font-black bg-emerald-500 text-slate-950">
                   {item.badge}
                 </span>
               )}
               <div
-                className={`p-1 rounded-lg transition-colors ${
+                className={`p-0.5 rounded-md transition-colors ${
                   item.isActive
                     ? isLight
                       ? 'bg-cyan-50'
@@ -120,9 +120,9 @@ export const BottomMobileBar: React.FC = () => {
                     : ''
                 }`}
               >
-                <Icon className="w-5 h-5" />
+                <Icon className="w-4 h-4" />
               </div>
-              <span className="text-[10px] mt-0.5 whitespace-nowrap">{item.label}</span>
+              <span className="text-[9px] mt-0.5 whitespace-nowrap">{item.label}</span>
             </button>
           );
         })}

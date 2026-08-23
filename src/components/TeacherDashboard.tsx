@@ -314,24 +314,24 @@ export const TeacherDashboard: React.FC = () => {
         )}
         
         {/* Welcome Card */}
-        <div className="relative overflow-hidden rounded-3xl bg-white dark:bg-gradient-to-r dark:from-slate-900 dark:via-slate-900 dark:to-cyan-950/40 border border-slate-200 dark:border-slate-800 p-6 sm:p-8 shadow-xl dark:shadow-2xl">
-          <div className="relative z-10 flex flex-col md:flex-row items-start md:items-center justify-between gap-6">
+        <div className="relative overflow-hidden rounded-2xl bg-white dark:bg-gradient-to-r dark:from-slate-900 dark:via-slate-900 dark:to-cyan-950/40 border border-slate-200 dark:border-slate-800 p-4 sm:p-6 shadow-lg dark:shadow-xl">
+          <div className="relative z-10 flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
             
-            <div className="flex items-center gap-4">
+            <div className="flex items-center gap-3">
               <div className="relative">
                 <img
                   src={teacherPlatform?.teacherAvatar || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=300&q=80'}
                   alt={teacherPlatform?.teacherName || 'المعلم'}
-                  className="w-16 h-16 sm:w-20 sm:h-20 rounded-2xl object-cover border-2 border-cyan-500 shadow-xl"
+                  className="w-12 h-12 sm:w-14 sm:h-14 rounded-xl object-cover border-2 border-cyan-500 shadow-md"
                   referrerPolicy="no-referrer"
                 />
-                <div className="absolute -bottom-1 -right-1 w-6 h-6 rounded-full bg-emerald-500 border-2 border-white dark:border-slate-900 flex items-center justify-center text-[10px] text-white dark:text-slate-950 font-black" title="نشط أونلاين">
+                <div className="absolute -bottom-1 -right-1 w-5 h-5 rounded-full bg-emerald-500 border-2 border-white dark:border-slate-900 flex items-center justify-center text-[9px] text-white dark:text-slate-950 font-black" title="نشط أونلاين">
                   ✓
                 </div>
               </div>
 
               {/* Official SEA Teacher Emblem Badge */}
-              <div className="hidden sm:flex w-14 h-14 rounded-2xl bg-indigo-500/10 border border-indigo-400/30 p-1 items-center justify-center shrink-0 overflow-hidden shadow-lg backdrop-blur-md">
+              <div className="hidden sm:flex w-10 h-10 rounded-xl bg-indigo-500/10 border border-indigo-400/30 p-1 items-center justify-center shrink-0 overflow-hidden shadow-md backdrop-blur-md">
                 <img 
                   src="/teacher-logo.png" 
                   alt="شعار قطاع المعلمين SEA" 
@@ -342,12 +342,12 @@ export const TeacherDashboard: React.FC = () => {
                     if (fallback) fallback.classList.remove('hidden');
                   }}
                 />
-                <BookOpen className="teacher-logo-header-fallback hidden w-7 h-7 text-indigo-500" />
+                <BookOpen className="teacher-logo-header-fallback hidden w-5 h-5 text-indigo-500" />
               </div>
 
               <div>
-                <div className="flex items-center gap-2.5">
-                  <h1 className="text-xl sm:text-2xl lg:text-3xl font-black text-slate-900 dark:text-white">
+                <div className="flex items-center gap-2">
+                  <h1 className="text-lg sm:text-xl lg:text-2xl font-black text-slate-900 dark:text-white">
                     {teacherPlatform?.teacherName || 'مستر محمد رضوان'}
                   </h1>
                   <span className="px-3 py-0.5 rounded-full bg-cyan-500/10 dark:bg-cyan-500/20 text-cyan-700 dark:text-cyan-300 border border-cyan-500/30 dark:border-cyan-400/40 text-xs font-black">

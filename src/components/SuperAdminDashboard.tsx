@@ -335,43 +335,43 @@ export const SuperAdminDashboard: React.FC = () => {
       </div>
 
       {/* Metrics Row */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
         
-        <div className={`p-5 rounded-2xl border transition-all ${
+        <div className={`p-3.5 sm:p-4 rounded-xl border transition-all ${
           isLight
             ? 'bg-white border-slate-200 shadow-sm hover:shadow-md'
             : 'bg-slate-900/90 border-slate-800'
         }`}>
-          <div className="flex items-center justify-between text-cyan-500 mb-2">
-            <span className={`text-xs font-bold ${isLight ? 'text-slate-500' : 'text-slate-400'}`}>المنصات المفعلة</span>
-            <Layers className="w-5 h-5" />
+          <div className="flex items-center justify-between text-cyan-500 mb-1.5">
+            <span className={`text-[11px] font-bold ${isLight ? 'text-slate-500' : 'text-slate-400'}`}>المنصات المفعلة</span>
+            <Layers className="w-4 h-4" />
           </div>
-          <div className={`text-2xl sm:text-3xl font-black ${isLight ? 'text-slate-900' : 'text-white'}`}>
-            {activePlatformsCount} <span className={`text-xs font-normal ${isLight ? 'text-slate-500' : 'text-slate-400'}`}>من {platforms.length}</span>
+          <div className={`text-xl sm:text-2xl font-black ${isLight ? 'text-slate-900' : 'text-white'}`}>
+            {activePlatformsCount} <span className={`text-[10px] font-normal ${isLight ? 'text-slate-500' : 'text-slate-400'}`}>من {platforms.length}</span>
           </div>
-          <div className="text-[11px] text-emerald-500 font-semibold mt-1">
+          <div className="text-[10px] text-emerald-500 font-semibold mt-1">
             • تعمل بنظام الحماية الفائق
           </div>
         </div>
 
-        <div className={`p-5 rounded-2xl border transition-all ${
+        <div className={`p-3.5 sm:p-4 rounded-xl border transition-all ${
           isLight
             ? 'bg-white border-slate-200 shadow-sm hover:shadow-md'
             : 'bg-slate-900/90 border-slate-800'
         }`}>
-          <div className="flex items-center justify-between text-sky-500 mb-2">
-            <span className={`text-xs font-bold ${isLight ? 'text-slate-500' : 'text-slate-400'}`}>إجمالي الطلاب المسجلين</span>
-            <Users className="w-5 h-5" />
+          <div className="flex items-center justify-between text-sky-500 mb-1.5">
+            <span className={`text-[11px] font-bold ${isLight ? 'text-slate-500' : 'text-slate-400'}`}>إجمالي الطلاب المسجلين</span>
+            <Users className="w-4 h-4" />
           </div>
-          <div className={`text-2xl sm:text-3xl font-black ${isLight ? 'text-slate-900' : 'text-white'}`}>
+          <div className={`text-xl sm:text-2xl font-black ${isLight ? 'text-slate-900' : 'text-white'}`}>
             {totalStudentsAcrossAll.toLocaleString()}
           </div>
-          <div className="text-[11px] text-sky-500 font-semibold mt-1">
+          <div className="text-[10px] text-sky-500 font-semibold mt-1">
             • في كافة المواد والسنوات
           </div>
         </div>
 
-        <div className={`p-5 rounded-2xl border transition-all ${
+        <div className={`p-3.5 sm:p-4 rounded-xl border transition-all ${
           isLight
             ? 'bg-white border-slate-200 shadow-sm hover:shadow-md'
             : 'bg-slate-900/90 border-slate-800'

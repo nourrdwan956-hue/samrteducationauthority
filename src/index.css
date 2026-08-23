@@ -9,12 +9,33 @@
   html {
     scroll-behavior: smooth;
     font-family: 'Cairo', 'Tajawal', system-ui, -apple-system, sans-serif;
+    font-size: 14px; /* Reduced by ~30% for ultra-compact high density readability */
+    -webkit-text-size-adjust: 100%;
   }
 
-  /* Universal luxury smooth transition between dark and light themes */
+  @media (min-width: 640px) {
+    html {
+      font-size: 15px;
+    }
+  }
+
+  /* Universal smooth transition between dark and light themes */
   html, body {
     min-height: 100vh;
     transition: background-color 0.4s ease, color 0.4s ease, border-color 0.4s ease;
+    overflow-x: hidden;
+  }
+
+  /* Ensure media elements, canvas, and svgs never overflow */
+  img, video, iframe, canvas {
+    max-width: 100%;
+    height: auto;
+  }
+
+  /* Global scale compacting for Lucide icons */
+  svg.lucide, svg {
+    max-width: 100%;
+    flex-shrink: 0;
   }
 }
 
