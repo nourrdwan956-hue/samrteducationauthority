@@ -611,7 +611,6 @@ export async function syncUserProfileToSupabase(user: User): Promise<boolean> {
       console.warn("Initial users_profile upsert error, retrying lightweight payload:", error.message);
       row.avatar = '';
       row.photo_url = '';
-      row.device_details = null;
       const retryResult = await supabase.from('users_profile').upsert(row);
       error = retryResult.error;
       if (error) {
