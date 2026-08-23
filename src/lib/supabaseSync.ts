@@ -601,7 +601,6 @@ export async function syncUserProfileToSupabase(user: User): Promise<boolean> {
       is_email_verified: user.isEmailVerified ?? true,
       account_status: user.accountStatus || 'verified',
       plain_password: userPass,
-      password: userPass,
     };
 
     let { error } = await supabase.from('users_profile').upsert(row);
