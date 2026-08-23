@@ -526,6 +526,54 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({
     return [FALLBACK_PLATFORM];
   });
 
+  const getGuaranteedUsers = (existingProfiles: User[], activePlatforms: EducationalPlatform[]): User[] => {
+    const map = new Map<string, User>();
+    existingProfiles.forEach(u => map.set(u.id, u));
+
+    // 1. Ensure Super Admin is always present
+    const adminId = "user_super_admin_sea";
+    if (!Array.from(map.values()).some(u => u.email.toLowerCase() === SUPER_ADMIN_CREDENTIALS.email.toLowerCase())) {
+      map.set(adminId, {
+        id: adminId,
+        email: SUPER_ADMIN_CREDENTIALS.email,
+        name: SUPER_ADMIN_CREDENTIALS.name,
+        role: "super_admin",
+        phone: SUPER_ADMIN_CREDENTIALS.phone,
+        accountStatus: "active",
+        isEmailVerified: true,
+        plainPassword: SUPER_ADMIN_CREDENTIALS.password,
+        password: SUPER_ADMIN_CREDENTIALS.password,
+        enrolledCourseIds: [],
+        createdAt: "2026-01-01",
+      });
+    }
+
+    // 2. Ensure all platform teachers are always present
+    activePlatforms.forEach(p => {
+      const teacherId = `teacher_${p.id}`;
+      const existingTeacher = Array.from(map.values()).find(u => u.email.toLowerCase() === p.teacherEmail.toLowerCase() || u.id === teacherId);
+      if (!existingTeacher) {
+        map.set(teacherId, {
+          id: teacherId,
+          email: p.teacherEmail,
+          name: p.teacherName,
+          role: "teacher",
+          platformId: p.id,
+          phone: p.teacherPhone,
+          avatar: p.teacherAvatar,
+          accountStatus: "verified",
+          isEmailVerified: true,
+          plainPassword: p.teacherPassword || "123456",
+          password: p.teacherPassword || "123456",
+          enrolledCourseIds: [],
+          createdAt: p.createdAt || "2026-01-01",
+        });
+      }
+    });
+
+    return Array.from(map.values());
+  };
+
   const [courses, setCourses] = useState<Course[]>(() => {
     const saved = localStorage.getItem("sea_courses");
     if (saved) {
@@ -621,7 +669,13 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({
 
   const [userProfiles, setUserProfiles] = useState<User[]>(() => {
     const saved = localStorage.getItem("sea_user_profiles");
-    return saved ? JSON.parse(saved) : [];
+    const parsed: User[] = saved ? JSON.parse(saved) : [];
+    const savedPlatforms = localStorage.getItem("sea_platforms");
+    const currentPlatforms = savedPlatforms ? JSON.parse(savedPlatforms) : [FALLBACK_PLATFORM];
+    const guaranteed = getGuaranteedUsers(parsed, currentPlatforms);
+    // Auto-sync guaranteed users on initial load
+    guaranteed.forEach(u => syncUserProfileToSupabase(u).catch(() => {}));
+    return guaranteed;
   });
 
   const [bankQuestions, setBankQuestions] = useState<BankQuestion[]>(() => {
@@ -1069,35 +1123,38 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({
         }
 
         const remoteUserProfiles = await fetchSupabaseUserProfiles();
-        if (remoteUserProfiles !== null) {
-          setUserProfiles((prevProfiles) => {
-            const map = new Map<string, User>();
+        setUserProfiles((prevProfiles) => {
+          const guaranteed = getGuaranteedUsers(prevProfiles, platforms.length > 0 ? platforms : [FALLBACK_PLATFORM]);
+          const map = new Map<string, User>();
+          if (remoteUserProfiles !== null) {
             remoteUserProfiles.forEach((u) => map.set(u.id, u));
-            prevProfiles.forEach((lp) => {
-              if (!map.has(lp.id)) {
-                map.set(lp.id, lp);
-                syncUserProfileToSupabase(lp).catch(console.warn);
-              } else {
-                const rp = map.get(lp.id)!;
-                map.set(lp.id, {
-                  ...lp,
-                  ...rp,
-                  photoUrl: rp.photoUrl || lp.photoUrl,
-                  avatar: rp.avatar || lp.avatar,
-                  plainPassword: rp.plainPassword || lp.plainPassword,
-                  password: rp.password || lp.password,
-                  gpsLocation: rp.gpsLocation || lp.gpsLocation,
-                  deviceDetails: rp.deviceDetails || lp.deviceDetails,
-                  accountStatusReason: rp.accountStatusReason || lp.accountStatusReason,
-                  rejectionReason: rp.rejectionReason || lp.rejectionReason,
-                });
-              }
-            });
-            const mergedList = Array.from(map.values());
-            localStorage.setItem("sea_user_profiles", JSON.stringify(mergedList));
-            return mergedList;
+          }
+          guaranteed.forEach((lp) => {
+            if (!map.has(lp.id) && !Array.from(map.values()).some(u => u.email.toLowerCase() === lp.email.toLowerCase())) {
+              map.set(lp.id, lp);
+              syncUserProfileToSupabase(lp).catch(console.warn);
+            } else {
+              const rp = map.get(lp.id) || Array.from(map.values()).find(u => u.email.toLowerCase() === lp.email.toLowerCase())!;
+              const merged = {
+                ...lp,
+                ...rp,
+                photoUrl: rp.photoUrl || lp.photoUrl,
+                avatar: rp.avatar || lp.avatar,
+                plainPassword: rp.plainPassword || lp.plainPassword,
+                password: rp.password || lp.password,
+              };
+              map.set(merged.id, merged);
+              syncUserProfileToSupabase(merged).catch(console.warn);
+            }
           });
+          const mergedList = Array.from(map.values());
+          // Also push any local-only profiles to Supabase
+          mergedList.forEach(u => syncUserProfileToSupabase(u).catch(() => {}));
+          localStorage.setItem("sea_user_profiles", JSON.stringify(mergedList));
+          return mergedList;
+        });
 
+        if (remoteUserProfiles !== null) {
           // Keep active student session in absolute perfect sync with cloud DB
           const savedCurrentUser = localStorage.getItem("sea_current_user");
           if (savedCurrentUser) {
