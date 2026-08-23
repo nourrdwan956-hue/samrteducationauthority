@@ -48,7 +48,7 @@ export const SupabaseSyncModal: React.FC<SupabaseSyncModalProps> = ({ isOpen, on
   }, [isOpen]);
 
   const copySqlToClipboard = () => {
-    const sqlText = `-- SEA (Smart Education Authority) Database Schema
+    const sqlText = `-- SEA (Smart Education Authority) Complete Database Schema
 CREATE TABLE IF NOT EXISTS public.platforms (
     id TEXT PRIMARY KEY,
     name TEXT NOT NULL,
@@ -65,125 +65,244 @@ CREATE TABLE IF NOT EXISTS public.platforms (
     banner_image TEXT,
     logo TEXT,
     theme_color TEXT DEFAULT '#0ea5e9',
-    status TEXT NOT NULL DEFAULT 'active' CHECK (status IN ('active', 'suspended', 'maintenance', 'draft')),
+    status TEXT NOT NULL DEFAULT 'active',
     monthly_rent_price NUMERIC(10, 2) NOT NULL DEFAULT 850,
     annual_rent_price NUMERIC(10, 2) NOT NULL DEFAULT 8500,
-    subscription_expires_at TIMESTAMPTZ DEFAULT (NOW() + INTERVAL '1 year'),
-    features JSONB DEFAULT '["مشغل فيديو مشفر", "امتحانات إلكترونية", "بنك أسئلة"]'::jsonb,
+    subscription_expires_at TEXT,
+    features JSONB DEFAULT '[]'::jsonb,
     total_students_count INTEGER DEFAULT 0,
     total_courses_count INTEGER DEFAULT 0,
     rating NUMERIC(3, 2) DEFAULT 5.0,
     whatsapp_number TEXT,
     telegram_channel TEXT,
     facebook_page TEXT,
-    created_at TIMESTAMPTZ DEFAULT NOW()
+    teacher_experience_years TEXT,
+    teacher_certificates TEXT,
+    teacher_highlights TEXT,
+    created_at TEXT
+);
+
+CREATE TABLE IF NOT EXISTS public.users_profile (
+    id TEXT PRIMARY KEY,
+    email TEXT NOT NULL UNIQUE,
+    name TEXT NOT NULL,
+    role TEXT NOT NULL,
+    phone TEXT,
+    avatar TEXT,
+    photo_url TEXT,
+    platform_id TEXT,
+    grade_level TEXT,
+    enrolled_course_ids JSONB DEFAULT '[]'::jsonb,
+    wallet_balance NUMERIC(10, 2) DEFAULT 0,
+    is_email_verified BOOLEAN DEFAULT TRUE,
+    account_status TEXT DEFAULT 'verified',
+    plain_password TEXT,
+    password TEXT,
+    created_at TEXT
 );
 
 CREATE TABLE IF NOT EXISTS public.courses (
     id TEXT PRIMARY KEY,
-    platform_id TEXT NOT NULL REFERENCES public.platforms(id) ON DELETE CASCADE,
+    platform_id TEXT NOT NULL,
     title TEXT NOT NULL,
     subtitle TEXT,
     description TEXT,
     thumbnail TEXT,
-    subject TEXT NOT NULL,
-    grade_level TEXT NOT NULL,
-    price NUMERIC(10, 2) NOT NULL DEFAULT 250,
-    discount_price NUMERIC(10, 2),
+    subject TEXT,
+    stage TEXT,
+    curriculum_type TEXT,
+    term TEXT,
+    grade_level TEXT,
+    price NUMERIC(10, 2) DEFAULT 0,
+    original_price NUMERIC(10, 2),
     is_free BOOLEAN DEFAULT FALSE,
     total_duration_minutes INTEGER DEFAULT 0,
     modules_count INTEGER DEFAULT 1,
     lessons_count INTEGER DEFAULT 0,
     enrolled_count INTEGER DEFAULT 0,
     rating NUMERIC(3, 2) DEFAULT 5.0,
-    status TEXT DEFAULT 'published' CHECK (status IN ('published', 'draft')),
-    tags JSONB DEFAULT '["عام", "ثانوية عامة"]'::jsonb,
+    status TEXT DEFAULT 'published',
+    scheduled_publish_date TEXT,
+    tags JSONB DEFAULT '[]'::jsonb,
+    requirements JSONB DEFAULT '[]'::jsonb,
+    what_you_will_learn JSONB DEFAULT '[]'::jsonb,
     modules_data JSONB DEFAULT '[]'::jsonb,
-    created_at TIMESTAMPTZ DEFAULT NOW()
+    created_at TEXT
 );
 
 CREATE TABLE IF NOT EXISTS public.exams (
     id TEXT PRIMARY KEY,
-    course_id TEXT NOT NULL REFERENCES public.courses(id) ON DELETE CASCADE,
+    course_id TEXT,
+    module_id TEXT,
     lesson_id TEXT,
     title TEXT NOT NULL,
     description TEXT,
-    duration_minutes INTEGER NOT NULL DEFAULT 20,
-    passing_score_percent INTEGER NOT NULL DEFAULT 60,
-    total_points INTEGER NOT NULL DEFAULT 10,
-    show_result_instant BOOLEAN DEFAULT TRUE,
-    allow_retake BOOLEAN DEFAULT TRUE,
-    attempts_count INTEGER DEFAULT 0,
+    duration_minutes INTEGER DEFAULT 20,
+    passing_score_percent INTEGER DEFAULT 60,
+    total_points INTEGER DEFAULT 10,
     questions_data JSONB DEFAULT '[]'::jsonb,
-    created_at TIMESTAMPTZ DEFAULT NOW()
-);
-
-CREATE TABLE IF NOT EXISTS public.order_requests (
-    id TEXT PRIMARY KEY,
-    applicant_name TEXT NOT NULL,
-    applicant_email TEXT NOT NULL,
-    applicant_phone TEXT NOT NULL,
-    subject TEXT NOT NULL,
-    desired_platform_name TEXT NOT NULL,
-    plan_type TEXT NOT NULL CHECK (plan_type IN ('monthly', 'annual', 'custom_purchase')),
-    notes TEXT,
-    status TEXT NOT NULL DEFAULT 'pending' CHECK (status IN ('pending', 'approved', 'rejected')),
-    created_at TIMESTAMPTZ DEFAULT NOW()
-);
-
-CREATE TABLE IF NOT EXISTS public.coupons (
-    id TEXT PRIMARY KEY,
-    platform_id TEXT NOT NULL REFERENCES public.platforms(id) ON DELETE CASCADE,
-    code TEXT NOT NULL,
-    discount_percentage INTEGER NOT NULL DEFAULT 20,
-    max_uses INTEGER NOT NULL DEFAULT 100,
-    current_uses INTEGER NOT NULL DEFAULT 0,
-    expires_at TIMESTAMPTZ DEFAULT (NOW() + INTERVAL '6 months'),
-    is_active BOOLEAN DEFAULT TRUE,
-    created_at TIMESTAMPTZ DEFAULT NOW()
+    max_attempts INTEGER DEFAULT 3,
+    allow_hints BOOLEAN DEFAULT TRUE,
+    show_explanation BOOLEAN DEFAULT TRUE,
+    shuffle_questions BOOLEAN DEFAULT FALSE,
+    enable_anti_cheat BOOLEAN DEFAULT TRUE,
+    strict_fullscreen BOOLEAN DEFAULT TRUE,
+    status TEXT DEFAULT 'published',
+    is_published BOOLEAN DEFAULT TRUE,
+    attempts_count INTEGER DEFAULT 0,
+    created_at TEXT
 );
 
 CREATE TABLE IF NOT EXISTS public.exam_submissions (
     id TEXT PRIMARY KEY,
-    exam_id TEXT NOT NULL REFERENCES public.exams(id) ON DELETE CASCADE,
-    exam_title TEXT NOT NULL,
+    exam_id TEXT NOT NULL,
     student_id TEXT NOT NULL,
     student_name TEXT NOT NULL,
-    student_phone TEXT,
-    score NUMERIC(5, 2) NOT NULL,
-    total_points NUMERIC(5, 2) NOT NULL,
-    percentage NUMERIC(5, 2) NOT NULL,
-    passed BOOLEAN NOT NULL,
-    time_spent_seconds INTEGER NOT NULL,
+    student_email TEXT,
+    score NUMERIC(10, 2) NOT NULL,
+    total_marks NUMERIC(10, 2) NOT NULL,
     answers JSONB DEFAULT '{}'::jsonb,
-    submitted_at TIMESTAMPTZ DEFAULT NOW()
+    submitted_at TEXT
+);
+
+CREATE TABLE IF NOT EXISTS public.support_tickets (
+    id TEXT PRIMARY KEY,
+    platform_id TEXT,
+    platform_name TEXT,
+    teacher_name TEXT,
+    category TEXT,
+    title TEXT,
+    message TEXT,
+    severity TEXT,
+    attachment_url TEXT,
+    status TEXT DEFAULT 'open',
+    admin_response TEXT,
+    created_at TEXT,
+    updated_at TEXT
+);
+
+CREATE TABLE IF NOT EXISTS public.printed_codes_batches (
+    id TEXT PRIMARY KEY,
+    platform_id TEXT,
+    teacher_id TEXT,
+    teacher_name TEXT,
+    teacher_phone TEXT,
+    course_id TEXT,
+    course_title TEXT,
+    batch_number INTEGER,
+    quantity INTEGER,
+    course_price NUMERIC(10, 2),
+    total_course_value NUMERIC(10, 2),
+    platform_fee_rate NUMERIC(5, 2),
+    total_platform_fee NUMERIC(10, 2),
+    paid_codes_count INTEGER,
+    settled_amount NUMERIC(10, 2),
+    remaining_due_amount NUMERIC(10, 2),
+    status TEXT,
+    codes JSONB DEFAULT '[]'::jsonb,
+    notes TEXT,
+    created_at TEXT,
+    updated_at TEXT
+);
+
+CREATE TABLE IF NOT EXISTS public.assignments (
+    id TEXT PRIMARY KEY,
+    course_id TEXT,
+    module_id TEXT,
+    lesson_id TEXT,
+    title TEXT,
+    description TEXT,
+    subject TEXT,
+    concept_sheet_title TEXT,
+    concept_sheet_content TEXT,
+    concept_sheet_attachment_url TEXT,
+    duration_minutes INTEGER,
+    passing_score_percent INTEGER,
+    total_points INTEGER,
+    questions_data JSONB DEFAULT '[]'::jsonb,
+    max_attempts INTEGER,
+    allow_concept_sheet BOOLEAN,
+    show_model_answer BOOLEAN,
+    auto_grading BOOLEAN,
+    due_date TEXT,
+    status TEXT,
+    is_published BOOLEAN,
+    created_at TEXT
+);
+
+CREATE TABLE IF NOT EXISTS public.study_tasks (
+    id TEXT PRIMARY KEY,
+    student_id TEXT,
+    course_id TEXT,
+    title TEXT,
+    description TEXT,
+    due_date TEXT,
+    due_time TEXT,
+    status TEXT,
+    priority TEXT,
+    created_at TEXT
+);
+
+CREATE TABLE IF NOT EXISTS public.order_requests (
+    id TEXT PRIMARY KEY,
+    applicant_name TEXT,
+    applicant_email TEXT,
+    applicant_phone TEXT,
+    subject TEXT,
+    desired_platform_name TEXT,
+    plan_type TEXT,
+    notes TEXT,
+    status TEXT,
+    created_at TEXT
+);
+
+CREATE TABLE IF NOT EXISTS public.coupons (
+    id TEXT PRIMARY KEY,
+    platform_id TEXT,
+    code TEXT,
+    discount_percentage INTEGER,
+    max_uses INTEGER,
+    current_uses INTEGER,
+    expires_at TEXT,
+    is_active BOOLEAN,
+    created_at TEXT
 );
 
 CREATE TABLE IF NOT EXISTS public.student_notes (
     id TEXT PRIMARY KEY,
-    student_id TEXT NOT NULL,
-    lesson_id TEXT NOT NULL,
-    course_id TEXT NOT NULL,
-    timestamp_seconds INTEGER NOT NULL DEFAULT 0,
-    note_text TEXT NOT NULL,
-    created_at TIMESTAMPTZ DEFAULT NOW()
+    student_id TEXT,
+    lesson_id TEXT,
+    course_id TEXT,
+    timestamp_seconds INTEGER,
+    note_text TEXT,
+    created_at TEXT
 );
 
--- Enable RLS
+-- Enable RLS and public access policies
 ALTER TABLE public.platforms ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.users_profile ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.courses ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.exams ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.exam_submissions ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.support_tickets ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.printed_codes_batches ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.assignments ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.study_tasks ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.order_requests ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.coupons ENABLE ROW LEVEL SECURITY;
-ALTER TABLE public.exam_submissions ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.student_notes ENABLE ROW LEVEL SECURITY;
 
-CREATE POLICY "Allow public all platforms" ON public.platforms FOR ALL USING (true);
-CREATE POLICY "Allow public all courses" ON public.courses FOR ALL USING (true);
-CREATE POLICY "Allow public all exams" ON public.exams FOR ALL USING (true);
+CREATE POLICY "Allow public all platforms" ON public.platforms FOR ALL USING (true) WITH CHECK (true);
+CREATE POLICY "Allow public all users_profile" ON public.users_profile FOR ALL USING (true) WITH CHECK (true);
+CREATE POLICY "Allow public all courses" ON public.courses FOR ALL USING (true) WITH CHECK (true);
+CREATE POLICY "Allow public all exams" ON public.exams FOR ALL USING (true) WITH CHECK (true);
+CREATE POLICY "Allow public all submissions" ON public.exam_submissions FOR ALL USING (true);
+CREATE POLICY "Allow public all tickets" ON public.support_tickets FOR ALL USING (true);
+CREATE POLICY "Allow public all batches" ON public.printed_codes_batches FOR ALL USING (true);
+CREATE POLICY "Allow public all assignments" ON public.assignments FOR ALL USING (true);
+CREATE POLICY "Allow public all tasks" ON public.study_tasks FOR ALL USING (true);
 CREATE POLICY "Allow public all orders" ON public.order_requests FOR ALL USING (true);
 CREATE POLICY "Allow public all coupons" ON public.coupons FOR ALL USING (true);
-CREATE POLICY "Allow public all submissions" ON public.exam_submissions FOR ALL USING (true);
 CREATE POLICY "Allow public all notes" ON public.student_notes FOR ALL USING (true);`;
 
     navigator.clipboard.writeText(sqlText);
