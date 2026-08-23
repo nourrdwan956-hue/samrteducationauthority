@@ -928,6 +928,12 @@ export const StudentSignUpPage: React.FC = () => {
     e.preventDefault();
     setErrorMsg("");
 
+    // 0. Device Registration Status Check
+    if (deviceBlockedReason) {
+      setErrorMsg(deviceBlockedReason);
+      return;
+    }
+
     // 1. Smart Name Check
     const nameCheck = validateHumanArabicName(fourPartName);
     if (!nameCheck.valid) {
@@ -1014,7 +1020,7 @@ export const StudentSignUpPage: React.FC = () => {
       return;
     }
 
-    // 7. Password Strength & Match Checks
+    // 7. Password Strength, Uniqueness & Match Checks
     if (!password) {
       setErrorMsg("يرجى تعيين كلمة مرور للحساب.");
       return;
@@ -1030,6 +1036,13 @@ export const StudentSignUpPage: React.FC = () => {
     if (password !== confirmPassword) {
       setErrorMsg(
         "كلمة المرور وتأكيد كلمة المرور غير متطابقين. يرجى إعادة كتابتهما بدقة.",
+      );
+      return;
+    }
+
+    if (isDuplicatePassword) {
+      setErrorMsg(
+        "عفواً، كلمة المرور المدخلة مستخدمة مسبقاً من قبل طالب آخر على المنظومة. تنص لوائح الأمان على منع تشارك أو تكرار كلمات المرور بين حسابات الطلاب نهائياً. يرجى الضغط على خيار 'استخدام كلمة المرور المقترحة' لتوليد كلمة مرور فريدة."
       );
       return;
     }
@@ -1117,6 +1130,9 @@ export const StudentSignUpPage: React.FC = () => {
         accountStatus: "pending_review" as const,
         photoUrl: livePhoto || undefined,
         gpsLocation: gpsLocation || undefined,
+        primaryDeviceId: deviceInfo.id,
+        deviceFingerprint: deviceInfo.fingerprint,
+        deviceDetails: deviceInfo,
       };
 
       const res = await signup(
