@@ -72,7 +72,11 @@ import {
   fetchSupabaseStudyTasks,
   deleteStudyTaskFromSupabase,
 } from "../lib/supabaseSync";
-import { detectCurrentDevice } from "../utils/deviceUtils";
+import {
+  detectCurrentDevice,
+  checkDeviceRegistrationStatus,
+  isPasswordAlreadyUsed,
+} from "../utils/deviceUtils";
 
 export type AppView =
   | "home"
@@ -1257,6 +1261,17 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({
             message: `عفواً، حساب الطالب (${matchedProfile.fourPartName || matchedProfile.name}) ما زال قيد المراجعة والتدقيق الإداري. يُرجى الانتظار لحين اعتماد وتفعيل الحساب رسمياً من إدارة شؤون الطلاب.`,
           };
         }
+
+        // Student Password Verification (if registered with password)
+        if (matchedProfile.plainPassword || matchedProfile.password) {
+          const savedPass = (matchedProfile.plainPassword || matchedProfile.password || "").trim();
+          if (savedPass && password.trim() !== savedPass) {
+            return {
+              success: false,
+              message: "كلمة المرور غير صحيحة. يرجى التأكد من كتابة كلمة المرور المعتمدة لحسابك بدقة.",
+            };
+          }
+        }
       }
 
       setCurrentUser(matchedProfile);
@@ -1311,6 +1326,39 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({
     const cleanGuardianPhone = convertArabicDigits(extraProfileData?.guardianPhone || "").replace(/\D/g, "");
     const cleanMotherPhone = convertArabicDigits(extraProfileData?.motherPhone || "").replace(/\D/g, "");
     const cleanNationalId = convertArabicDigits(extraProfileData?.nationalId || "").replace(/\D/g, "");
+
+    // 0. STRICT DEVICE TRACKING & MULTI-ACCOUNT REGISTRATION CONTROL
+    const currentDevice = detectCurrentDevice();
+    const targetDevId = extraProfileData?.primaryDeviceId || currentDevice.id;
+    const targetDevFp = extraProfileData?.deviceFingerprint || currentDevice.fingerprint;
+
+    const deviceCheck = checkDeviceRegistrationStatus(
+      targetDevId,
+      targetDevFp,
+      cleanEmail,
+      userProfiles
+    );
+    if (!deviceCheck.allowed) {
+      return {
+        success: false,
+        message: deviceCheck.blockedReason || "تم حظر التسجيل من هذا الجهاز حتى يتم قبول واعتماد الحساب المسجل مسبقاً.",
+      };
+    }
+
+    // 0.1 STRICT PASSWORD UNIQUENESS & SHARED PASSWORD PREVENTION
+    const cleanPassword = password.trim();
+    if (!cleanPassword || cleanPassword.length < 6) {
+      return {
+        success: false,
+        message: "كلمة المرور يجب ألا تقل عن 6 خانات (أحرف أو أرقام) لضمان حماية الحساب.",
+      };
+    }
+    if (isPasswordAlreadyUsed(cleanPassword, userProfiles)) {
+      return {
+        success: false,
+        message: "عفواً، كلمة المرور المدخلة مستخدمة مسبقاً من قبل طالب آخر على المنظومة. تنص لوائح الأمان على منع تشارك أو تكرار كلمات المرور بين حسابات الطلاب نهائياً. يرجى اختيار كلمة مرور فريدة ومختلفة.",
+      };
+    }
 
     // Helper for Egyptian phone comparison
     const normalizeDigits = (pStr?: string) => {
@@ -1426,6 +1474,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({
       id: "student_" + Date.now(),
       email: cleanEmail,
       name: name.trim(),
+      password: cleanPassword,
+      plainPassword: cleanPassword,
       fourPartName: extraProfileData?.fourPartName || name.trim(),
       phone: phone?.trim() || "",
       gradeLevel: gradeLevel || "الصف الثالث الثانوي",
@@ -1441,9 +1491,18 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({
       academicSection: extraProfileData?.academicSection || "general",
       educationSystem: extraProfileData?.educationSystem || "general_arabic",
       isEmailVerified: extraProfileData?.isEmailVerified ?? true,
-      deviceFingerprint:
-        extraProfileData?.deviceFingerprint ||
-        `SEA-DEV-${Math.random().toString(36).substring(2, 9).toUpperCase()}`,
+      primaryDeviceId: targetDevId,
+      deviceFingerprint: targetDevFp,
+      deviceDetails: extraProfileData?.deviceDetails || {
+        userAgent: currentDevice.userAgent,
+        os: currentDevice.os,
+        browser: currentDevice.browser,
+        deviceType: currentDevice.type,
+        screenResolution: currentDevice.screenResolution,
+        language: currentDevice.language,
+        timeZone: currentDevice.timeZone,
+        registeredAt: currentDevice.registeredAt,
+      },
       birthDate: extraProfileData?.birthDate || "",
       gender: extraProfileData?.gender || "male",
       emergencyNotes: extraProfileData?.emergencyNotes || "",
@@ -1546,6 +1605,10 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({
       } catch (e) {
         console.error(e);
       }
+      const updatedTarget = updated.find((u) => u.id === userId);
+      if (updatedTarget) {
+        syncUserProfileToSupabase(updatedTarget).catch(console.warn);
+      }
       return updated;
     });
 
@@ -1611,6 +1674,10 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({
       } catch (e) {
         console.error(e);
       }
+      const updatedTarget = updated.find((u) => u.id === userId);
+      if (updatedTarget) {
+        syncUserProfileToSupabase(updatedTarget).catch(console.warn);
+      }
       return updated;
     });
 
@@ -1644,8 +1711,6 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({
       }
       return updated;
     });
-
-    // Permanently delete from Supabase cloud database so it doesn't reappear on refresh
     deleteUserProfileFromSupabase(userId).catch(console.warn);
 
     if (currentUser && currentUser.id === userId) {

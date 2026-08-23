@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useApp } from '../context/AppContext';
 import { EducationalPlatform, PlatformOrderRequest, User, PrintedCodesBatch } from '../types';
 import { AdminTicketsPanel } from './admin/AdminTicketsPanel';
@@ -118,6 +118,17 @@ export const SuperAdminDashboard: React.FC = () => {
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const [editingPlatform, setEditingPlatform] = useState<EducationalPlatform | null>(null);
   const [credentialsModalPlatform, setCredentialsModalPlatform] = useState<EducationalPlatform | null>(null);
+
+  // Admin Master Password States for Student Password Reveal
+  const [adminPasswordInput, setAdminPasswordInput] = useState('');
+  const [isPasswordUnlockedForStudent, setIsPasswordUnlockedForStudent] = useState(false);
+  const [adminPasswordError, setAdminPasswordError] = useState(false);
+
+  useEffect(() => {
+    setIsPasswordUnlockedForStudent(false);
+    setAdminPasswordInput('');
+    setAdminPasswordError(false);
+  }, [selectedStudentProfile?.id]);
 
   // Central Payment Settings Panel States
   const [vodafoneOn, setVodafoneOn] = useState(paymentSettings?.vodafoneEnabled ?? true);
@@ -2387,16 +2398,82 @@ export const SuperAdminDashboard: React.FC = () => {
                 )}
               </div>
 
-              {/* Student WhatsApp Contact */}
-              <div className={`p-3.5 rounded-2xl border space-y-1 ${
+              {/* Student WhatsApp Contact & Secure Password Card */}
+              <div className={`p-3.5 rounded-2xl border space-y-2.5 ${
                 isLight ? 'bg-slate-50 border-slate-200' : 'bg-slate-950 border-slate-800'
               }`}>
-                <span className={`text-[10px] font-bold ${isLight ? 'text-slate-500' : 'text-slate-400'}`}>هاتف الطالب الشخصي (واتساب):</span>
+                <div className="flex items-center justify-between">
+                  <span className={`text-[10px] font-bold ${isLight ? 'text-slate-500' : 'text-slate-400'}`}>هاتف الطالب الشخصي (واتساب):</span>
+                  <span className="text-[10px] font-bold text-cyan-600 dark:text-cyan-400 font-mono">حماية بيانات الاعتماد</span>
+                </div>
                 <div className="font-mono font-bold text-emerald-600 dark:text-emerald-400 text-sm select-all">
                   {selectedStudentProfile.phone || '—'}
                 </div>
                 <div className={`text-[11px] font-mono select-all ${isLight ? 'text-slate-500' : 'text-slate-400'}`}>
                   البريد: {selectedStudentProfile.email}
+                </div>
+
+                {/* Secure Password Reveal via Master Admin Password */}
+                <div className="pt-2 border-t border-slate-200 dark:border-slate-800 space-y-2">
+                  <div className="flex items-center justify-between">
+                    <span className="text-[11px] font-black text-amber-600 dark:text-amber-400 flex items-center gap-1">
+                      <Lock className="w-3.5 h-3.5" />
+                      كلمة مرور الطالب المسجلة:
+                    </span>
+                  </div>
+
+                  {isPasswordUnlockedForStudent ? (
+                    <div className="p-2.5 rounded-xl bg-emerald-500/10 border border-emerald-500/30 flex items-center justify-between">
+                      <span className="font-mono font-bold text-emerald-700 dark:text-emerald-300 text-xs select-all">
+                        {selectedStudentProfile.plainPassword || selectedStudentProfile.password || 'غير متوفرة'}
+                      </span>
+                      <button
+                        type="button"
+                        onClick={() => setIsPasswordUnlockedForStudent(false)}
+                        className="text-[10px] text-slate-500 hover:text-slate-700 dark:hover:text-slate-300 underline"
+                      >
+                        إخفاء
+                      </button>
+                    </div>
+                  ) : (
+                    <div className="space-y-2">
+                      <div className="text-[10px] text-slate-500 dark:text-slate-400">
+                        لأمان بيانات الطلاب، يرجى إدخال كلمة سر المشرف الرئيسية لاعتماد الكشف عن كلمة المرور:
+                      </div>
+                      <div className="flex gap-2">
+                        <input
+                          type="password"
+                          placeholder="كلمة مرور المشرف الرئيسية..."
+                          value={adminPasswordInput}
+                          onChange={(e) => {
+                            setAdminPasswordInput(e.target.value);
+                            setAdminPasswordError(false);
+                          }}
+                          className="flex-1 px-3 py-2 rounded-xl bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 text-xs font-mono"
+                        />
+                        <button
+                          type="button"
+                          onClick={() => {
+                            if (adminPasswordInput.trim() === 'dfg-paswrd-00&109phj') {
+                              setIsPasswordUnlockedForStudent(true);
+                              setAdminPasswordError(false);
+                              setAdminPasswordInput('');
+                            } else {
+                              setAdminPasswordError(true);
+                            }
+                          }}
+                          className="px-3 py-2 rounded-xl bg-cyan-600 hover:bg-cyan-500 text-white font-bold text-xs transition-all cursor-pointer"
+                        >
+                          كشف
+                        </button>
+                      </div>
+                      {adminPasswordError && (
+                        <p className="text-[10px] text-rose-500 font-bold">
+                          ❌ كلمة سر المشرف غير صحيحة (كلمة المرور المطلوبة: dfg-paswrd-00&109phj)
+                        </p>
+                      )}
+                    </div>
+                  )}
                 </div>
               </div>
 

@@ -47,9 +47,21 @@ export interface User {
     capturedAt?: string;
   };
   rejectionReason?: string;
+  password?: string;
+  plainPassword?: string;
   deviceFingerprint?: string;
   primaryDeviceId?: string;
   secondaryDeviceId?: string;
+  deviceDetails?: {
+    userAgent: string;
+    os: string;
+    browser: string;
+    deviceType: string;
+    screenResolution: string;
+    language: string;
+    timeZone: string;
+    registeredAt: string;
+  };
   primaryDevice?: {
     id: string;
     name: string;

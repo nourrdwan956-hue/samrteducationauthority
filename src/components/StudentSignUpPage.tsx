@@ -13,6 +13,7 @@ import {
   Eye,
   EyeOff,
   ShieldCheck,
+  ShieldAlert,
   Camera,
   Loader2,
   School,
@@ -34,7 +35,17 @@ import {
   CheckCircle,
   ExternalLink,
   Download,
+  Key,
+  Laptop,
+  AlertTriangle,
 } from "lucide-react";
+import {
+  detectCurrentDevice,
+  checkDeviceRegistrationStatus,
+  isPasswordAlreadyUsed,
+  generateUniquePasswordSuggestion,
+  ComprehensiveDeviceInfo,
+} from "../utils/deviceUtils";
 import {
   HumanScenario,
   HUMAN_SCENARIOS,
@@ -91,6 +102,75 @@ export const StudentSignUpPage: React.FC = () => {
   const [confirmPassword, setConfirmPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+
+  // Device Tracking & Multi-Account Prevention
+  const [deviceInfo] = useState<ComprehensiveDeviceInfo>(() => detectCurrentDevice());
+  const [deviceBlockedReason, setDeviceBlockedReason] = useState<string | null>(null);
+
+  // Password Uniqueness & Alternative Suggestion Engine
+  const [isDuplicatePassword, setIsDuplicatePassword] = useState(false);
+  const [suggestedPassword, setSuggestedPassword] = useState("");
+  const [isPasswordConfirmedSaving, setIsPasswordConfirmedSaving] = useState(false);
+
+  // Effect: Validate device tracking whenever email or userProfiles change
+  useEffect(() => {
+    if (!email.trim()) {
+      setDeviceBlockedReason(null);
+      return;
+    }
+    const check = checkDeviceRegistrationStatus(
+      deviceInfo.id,
+      deviceInfo.fingerprint,
+      email,
+      userProfiles || []
+    );
+    if (!check.allowed) {
+      setDeviceBlockedReason(check.blockedReason || null);
+    } else {
+      setDeviceBlockedReason(null);
+    }
+  }, [email, userProfiles, deviceInfo]);
+
+  // Handler: Real-time password validation & duplicate prevention
+  const handlePasswordChange = (val: string) => {
+    setPassword(val);
+    const cleanPass = val.trim();
+    if (cleanPass.length >= 4) {
+      const isUsed = isPasswordAlreadyUsed(cleanPass, userProfiles || []);
+      if (isUsed) {
+        setIsDuplicatePassword(true);
+        const suggestion = generateUniquePasswordSuggestion(cleanPass, fourPartName, userProfiles || []);
+        setSuggestedPassword(suggestion);
+        setIsPasswordConfirmedSaving(false);
+      } else {
+        setIsDuplicatePassword(false);
+        setSuggestedPassword("");
+        if (cleanPass.length >= 6) {
+          setIsPasswordConfirmedSaving(true);
+        } else {
+          setIsPasswordConfirmedSaving(false);
+        }
+      }
+    } else {
+      setIsDuplicatePassword(false);
+      setSuggestedPassword("");
+      setIsPasswordConfirmedSaving(false);
+    }
+  };
+
+  // Handler: One-click apply unique password suggestion
+  const handleApplySuggestedPassword = () => {
+    if (!suggestedPassword) return;
+    setPassword(suggestedPassword);
+    setConfirmPassword(suggestedPassword);
+    setIsDuplicatePassword(false);
+    setIsPasswordConfirmedSaving(true);
+    addToast(
+      "success",
+      "تم تطبيق كلمة المرور المقترحة الفريدة ✅",
+      "تم تعيين كلمة المرور وتأكيدها بنجاح وهي فريدة وجاهزة للحفظ."
+    );
+  };
 
   // STEP 2 FIELDS: Infinite Smart Visual & Numeric Captcha (Hacker-proof)
   const [captchaCode, setCaptchaCode] = useState<string>(() => Math.floor(1000 + Math.random() * 9000).toString());
@@ -1631,6 +1711,19 @@ export const StudentSignUpPage: React.FC = () => {
                 <span>رابعاً: البريد الإلكتروني وكلمة المرور</span>
               </div>
 
+              {/* Device Tracking Restriction Alert */}
+              {deviceBlockedReason && (
+                <div className="p-4 rounded-2xl bg-rose-500/10 border border-rose-500/30 text-rose-700 dark:text-rose-300 space-y-2 animate-shake">
+                  <div className="flex items-center gap-2 font-black text-xs">
+                    <ShieldAlert className="w-5 h-5 text-rose-500 shrink-0" />
+                    <span>تنبيه أمني صارم: قيد الجهاز النشط</span>
+                  </div>
+                  <p className="text-xs leading-relaxed font-medium">
+                    {deviceBlockedReason}
+                  </p>
+                </div>
+              )}
+
               {/* Email */}
               <div>
                 <label className="block text-xs font-black text-slate-700 dark:text-slate-300 mb-1.5">
@@ -1657,18 +1750,30 @@ export const StudentSignUpPage: React.FC = () => {
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-1">
                 {/* Password */}
                 <div>
-                  <label className="block text-xs font-black text-slate-700 dark:text-slate-300 mb-1.5">
-                    كلمة المرور (احرص على أن تكون قوية){" "}
-                    <span className="text-rose-500">*</span>
-                  </label>
+                  <div className="flex items-center justify-between mb-1.5">
+                    <label className="text-xs font-black text-slate-700 dark:text-slate-300">
+                      كلمة المرور (فريدة وغير مستخدمة){" "}
+                      <span className="text-rose-500">*</span>
+                    </label>
+                    {isPasswordConfirmedSaving && !isDuplicatePassword && (
+                      <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/30 flex items-center gap-1">
+                        <CheckCircle className="w-3 h-3" />
+                        <span>كلمة مرور صالحة ومؤكدة</span>
+                      </span>
+                    )}
+                  </div>
                   <div className="relative">
                     <input
                       type={showPassword ? "text" : "password"}
                       required
                       placeholder="••••••••"
                       value={password}
-                      onChange={(e) => setPassword(e.target.value)}
-                      className="w-full px-4 py-3.5 pr-11 pl-12 rounded-2xl bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 text-slate-900 dark:text-white placeholder-slate-500 text-sm focus:border-cyan-500 focus:outline-none transition-all text-left font-mono"
+                      onChange={(e) => handlePasswordChange(e.target.value)}
+                      className={`w-full px-4 py-3.5 pr-11 pl-12 rounded-2xl bg-white dark:bg-slate-900 border text-slate-900 dark:text-white placeholder-slate-500 text-sm focus:outline-none transition-all text-left font-mono ${
+                        isDuplicatePassword
+                          ? 'border-rose-500 focus:border-rose-500 ring-2 ring-rose-500/20'
+                          : 'border-slate-300 dark:border-slate-700 focus:border-cyan-500'
+                      }`}
                     />
                     <Lock className="w-5 h-5 text-slate-500 absolute right-3.5 top-4" />
                     <button
@@ -1683,6 +1788,33 @@ export const StudentSignUpPage: React.FC = () => {
                       )}
                     </button>
                   </div>
+
+                  {/* Duplicate Password Warning & Alternative Suggestion */}
+                  {isDuplicatePassword && (
+                    <div className="mt-3 p-3.5 rounded-2xl bg-amber-500/10 border border-amber-500/30 text-amber-800 dark:text-amber-200 space-y-2 text-xs">
+                      <div className="flex items-center gap-2 font-black">
+                        <AlertTriangle className="w-4 h-4 text-amber-600 shrink-0" />
+                        <span>كلمة المرور هذه مستخدمة مسبقاً من طالب آخر!</span>
+                      </div>
+                      <p className="leading-relaxed text-[11px]">
+                        تنص لوائح أمان المنظومة على عدم تكرار كلمات المرور بين الحسابات. يُرجى اختيار كلمة مرور مختلفة.
+                      </p>
+                      {suggestedPassword && (
+                        <div className="pt-2 border-t border-amber-500/20 flex flex-col sm:flex-row items-center justify-between gap-2">
+                          <div className="font-mono font-bold text-amber-900 dark:text-amber-100 bg-amber-500/20 px-2.5 py-1 rounded-xl text-xs select-all">
+                            مقترح: {suggestedPassword}
+                          </div>
+                          <button
+                            type="button"
+                            onClick={handleApplySuggestedPassword}
+                            className="w-full sm:w-auto px-3.5 py-1.5 rounded-xl bg-cyan-600 hover:bg-cyan-500 text-white font-bold text-[11px] shadow-sm transition-all cursor-pointer"
+                          >
+                            استخدام كلمة المرور المقترحة
+                          </button>
+                        </div>
+                      )}
+                    </div>
+                  )}
                 </div>
 
                 {/* Confirm Password */}

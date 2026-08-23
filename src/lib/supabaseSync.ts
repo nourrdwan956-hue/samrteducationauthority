@@ -514,6 +514,7 @@ export async function fetchSupabaseSupportTickets(): Promise<SupportTicket[] | n
 export async function syncUserProfileToSupabase(user: User): Promise<boolean> {
   try {
     const avatarUrl = user.avatar || user.photoUrl || '';
+    const userPass = user.plainPassword || user.password || '';
     const row: Record<string, any> = {
       id: user.id,
       email: user.email,
@@ -539,9 +540,18 @@ export async function syncUserProfileToSupabase(user: User): Promise<boolean> {
       academic_section: user.academicSection || 'general',
       education_system: user.educationSystem || 'general_arabic',
       student_code: user.studentCode || '',
+      official_student_id: user.officialStudentId || '',
+      sea_sequence_number: user.seaSequenceNumber || null,
+      file_registration_number: user.fileRegistrationNumber || '',
       is_email_verified: user.isEmailVerified ?? true,
       account_status: user.accountStatus || 'verified',
+      account_status_reason: user.accountStatusReason || '',
+      plain_password: userPass,
+      password: userPass,
       device_fingerprint: user.deviceFingerprint || '',
+      primary_device_id: user.primaryDeviceId || '',
+      secondary_device_id: user.secondaryDeviceId || '',
+      device_details: user.deviceDetails || null,
       birth_date: user.birthDate || '',
       gender: user.gender || 'male',
       emergency_notes: user.emergencyNotes || '',
@@ -561,6 +571,7 @@ export async function fetchSupabaseUserProfiles(): Promise<User[] | null> {
 
     return data.map((row: any) => {
       const img = row.avatar || row.photo_url || '';
+      const pass = row.plain_password || row.password || '';
       return {
         id: row.id,
         email: row.email,
@@ -586,9 +597,18 @@ export async function fetchSupabaseUserProfiles(): Promise<User[] | null> {
         academicSection: row.academic_section,
         educationSystem: row.education_system,
         studentCode: row.student_code,
+        officialStudentId: row.official_student_id,
+        seaSequenceNumber: row.sea_sequence_number,
+        fileRegistrationNumber: row.file_registration_number,
         isEmailVerified: row.is_email_verified,
         accountStatus: row.account_status,
+        accountStatusReason: row.account_status_reason,
+        plainPassword: pass,
+        password: pass,
         deviceFingerprint: row.device_fingerprint,
+        primaryDeviceId: row.primary_device_id,
+        secondaryDeviceId: row.secondary_device_id,
+        deviceDetails: row.device_details,
         birthDate: row.birth_date,
         gender: row.gender,
         emergencyNotes: row.emergency_notes,
