@@ -28,6 +28,12 @@ export interface SupabaseHealthStatus {
     orders: number | null;
     coupons: number | null;
     live_sessions: number | null;
+    users_profile: number | null;
+    support_tickets: number | null;
+    printed_codes_batches: number | null;
+    assignments: number | null;
+    study_tasks: number | null;
+    admin_logs: number | null;
   };
   latencyMs: number;
   lastChecked: string;
@@ -47,13 +53,19 @@ export async function getSupabaseHealth(): Promise<SupabaseHealthStatus> {
       orders: null,
       coupons: null,
       live_sessions: null,
+      users_profile: null,
+      support_tickets: null,
+      printed_codes_batches: null,
+      assignments: null,
+      study_tasks: null,
+      admin_logs: null,
     },
     latencyMs: 0,
     lastChecked: new Date().toLocaleTimeString('ar-EG'),
   };
 
   try {
-    const { data, error, count } = await supabase
+    const { error, count } = await supabase
       .from('platforms')
       .select('*', { count: 'exact', head: true });
 
@@ -63,25 +75,22 @@ export async function getSupabaseHealth(): Promise<SupabaseHealthStatus> {
       status.connected = true;
       status.tableStats.platforms = count ?? 0;
 
-      // check courses
-      const coursesRes = await supabase.from('courses').select('*', { count: 'exact', head: true });
-      if (!coursesRes.error) status.tableStats.courses = coursesRes.count ?? 0;
+      const runCount = async (tableName: string) => {
+        const res = await supabase.from(tableName).select('*', { count: 'exact', head: true });
+        return res.error ? null : (res.count ?? 0);
+      };
 
-      // check exams
-      const examsRes = await supabase.from('exams').select('*', { count: 'exact', head: true });
-      if (!examsRes.error) status.tableStats.exams = examsRes.count ?? 0;
-
-      // check orders
-      const ordersRes = await supabase.from('order_requests').select('*', { count: 'exact', head: true });
-      if (!ordersRes.error) status.tableStats.orders = ordersRes.count ?? 0;
-
-      // check coupons
-      const couponsRes = await supabase.from('coupons').select('*', { count: 'exact', head: true });
-      if (!couponsRes.error) status.tableStats.coupons = couponsRes.count ?? 0;
-
-      // check live_sessions
-      const liveSessionsRes = await supabase.from('live_sessions').select('*', { count: 'exact', head: true });
-      if (!liveSessionsRes.error) status.tableStats.live_sessions = liveSessionsRes.count ?? 0;
+      status.tableStats.courses = await runCount('courses');
+      status.tableStats.exams = await runCount('exams');
+      status.tableStats.orders = await runCount('order_requests');
+      status.tableStats.coupons = await runCount('coupons');
+      status.tableStats.live_sessions = await runCount('live_sessions');
+      status.tableStats.users_profile = await runCount('users_profile');
+      status.tableStats.support_tickets = await runCount('support_tickets');
+      status.tableStats.printed_codes_batches = await runCount('printed_codes_batches');
+      status.tableStats.assignments = await runCount('assignments');
+      status.tableStats.study_tasks = await runCount('study_tasks');
+      status.tableStats.admin_logs = await runCount('admin_logs');
     } else {
       status.error = error.message;
     }
@@ -126,6 +135,9 @@ export async function fetchSupabasePlatforms(): Promise<EducationalPlatform[] | 
       whatsappNumber: row.whatsapp_number,
       telegramChannel: row.telegram_channel,
       facebookPage: row.facebook_page,
+      teacherExperienceYears: row.teacher_experience_years || '',
+      teacherCertificates: row.teacher_certificates || '',
+      teacherHighlights: row.teacher_highlights || '',
       createdAt: row.created_at || new Date().toISOString().split('T')[0],
     }));
   } catch {
@@ -136,7 +148,11 @@ export async function fetchSupabasePlatforms(): Promise<EducationalPlatform[] | 
 // 3. Upsert Platform to Supabase
 export async function syncPlatformToSupabase(platform: EducationalPlatform): Promise<boolean> {
   try {
-    const row = {
+    const isHugeBanner = platform.bannerImage?.startsWith('data:') && platform.bannerImage.length > 80000;
+    const isHugeLogo = platform.logo?.startsWith('data:') && platform.logo.length > 80000;
+    const isHugeAvatar = platform.teacherAvatar?.startsWith('data:') && platform.teacherAvatar.length > 80000;
+
+    const row: Record<string, any> = {
       id: platform.id,
       name: platform.name,
       slug: platform.slug,
@@ -148,9 +164,9 @@ export async function syncPlatformToSupabase(platform: EducationalPlatform): Pro
       teacher_password: platform.teacherPassword,
       teacher_phone: platform.teacherPhone,
       teacher_bio: platform.teacherBio,
-      teacher_avatar: platform.teacherAvatar,
-      banner_image: platform.bannerImage,
-      logo: platform.logo,
+      teacher_avatar: isHugeAvatar ? '' : platform.teacherAvatar,
+      banner_image: isHugeBanner ? '' : platform.bannerImage,
+      logo: isHugeLogo ? '' : platform.logo,
       theme_color: platform.themeColor,
       status: platform.status,
       monthly_rent_price: platform.monthlyRentPrice,
@@ -163,11 +179,23 @@ export async function syncPlatformToSupabase(platform: EducationalPlatform): Pro
       whatsapp_number: platform.whatsappNumber,
       telegram_channel: platform.telegramChannel,
       facebook_page: platform.facebookPage,
+      teacher_experience_years: platform.teacherExperienceYears || '',
+      teacher_certificates: platform.teacherCertificates || '',
+      teacher_highlights: platform.teacherHighlights || '',
     };
 
-    const { error } = await supabase.from('platforms').upsert(row);
+    let { error } = await supabase.from('platforms').upsert(row);
+    if (error) {
+      console.warn('Initial platforms upsert warning, retrying without image data:', error.message);
+      row.banner_image = '';
+      row.logo = '';
+      row.teacher_avatar = '';
+      const retry = await supabase.from('platforms').upsert(row);
+      error = retry.error;
+    }
     return !error;
-  } catch {
+  } catch (err) {
+    console.error('Exception syncing platform to Supabase:', err);
     return false;
   }
 }
@@ -196,9 +224,12 @@ export async function fetchSupabaseCourses(): Promise<Course[] | null> {
       description: row.description || '',
       thumbnail: row.thumbnail || '',
       subject: row.subject,
+      stage: row.stage,
+      curriculumType: row.curriculum_type,
+      term: row.term,
       gradeLevel: row.grade_level,
       price: Number(row.price || 0),
-      originalPrice: row.original_price ? Number(row.original_price) : undefined,
+      originalPrice: row.original_price ? Number(row.original_price) : (row.discount_price ? Number(row.discount_price) : undefined),
       isFree: Boolean(row.is_free),
       totalDurationMinutes: Number(row.total_duration_minutes || 0),
       modulesCount: Number(row.modules_count || 1),
@@ -206,7 +237,10 @@ export async function fetchSupabaseCourses(): Promise<Course[] | null> {
       enrolledCount: Number(row.enrolled_count || 0),
       rating: Number(row.rating || 5.0),
       status: row.status || 'published',
+      scheduledPublishDate: row.scheduled_publish_date,
       tags: Array.isArray(row.tags) ? row.tags : [],
+      requirements: Array.isArray(row.requirements) ? row.requirements : [],
+      whatYouWillLearn: Array.isArray(row.what_you_will_learn) ? row.what_you_will_learn : [],
       modules: Array.isArray(row.modules_data) ? row.modules_data : [],
       createdAt: row.created_at || new Date().toISOString().split('T')[0],
     }));
@@ -218,17 +252,23 @@ export async function fetchSupabaseCourses(): Promise<Course[] | null> {
 // 6. Upsert Course to Supabase
 export async function syncCourseToSupabase(course: Course): Promise<boolean> {
   try {
-    const row = {
+    const isHugeThumb = course.thumbnail?.startsWith('data:') && course.thumbnail.length > 80000;
+
+    const row: Record<string, any> = {
       id: course.id,
       platform_id: course.platformId,
       title: course.title,
-      subtitle: course.subtitle,
-      description: course.description,
-      thumbnail: course.thumbnail,
+      subtitle: course.subtitle || '',
+      description: course.description || '',
+      thumbnail: isHugeThumb ? '' : (course.thumbnail || ''),
       subject: course.subject,
+      stage: course.stage || null,
+      curriculum_type: course.curriculumType || null,
+      term: course.term || null,
       grade_level: course.gradeLevel,
       price: course.price,
-      original_price: course.originalPrice,
+      original_price: course.originalPrice || null,
+      discount_price: course.originalPrice || null,
       is_free: course.isFree,
       total_duration_minutes: course.totalDurationMinutes,
       modules_count: course.modulesCount,
@@ -236,13 +276,23 @@ export async function syncCourseToSupabase(course: Course): Promise<boolean> {
       enrolled_count: course.enrolledCount,
       rating: course.rating,
       status: course.status,
-      tags: course.tags,
-      modules_data: course.modules,
+      scheduled_publish_date: course.scheduledPublishDate || null,
+      tags: course.tags || [],
+      requirements: course.requirements || [],
+      what_you_will_learn: course.whatYouWillLearn || [],
+      modules_data: course.modules || [],
     };
 
-    const { error } = await supabase.from('courses').upsert(row);
+    let { error } = await supabase.from('courses').upsert(row);
+    if (error) {
+      console.warn('Initial courses upsert warning, retrying lightweight thumbnail payload:', error.message);
+      row.thumbnail = '';
+      const retry = await supabase.from('courses').upsert(row);
+      error = retry.error;
+    }
     return !error;
-  } catch {
+  } catch (err) {
+    console.error('Exception syncing course to Supabase:', err);
     return false;
   }
 }
@@ -323,10 +373,9 @@ export async function syncNoteToSupabase(note: StudentNote): Promise<boolean> {
 // 11. Sync Coupon to Supabase
 export async function syncCouponToSupabase(coupon: CouponCode): Promise<boolean> {
   try {
-    const row = {
+    const row: Record<string, any> = {
       id: coupon.id,
       platform_id: coupon.platformId || 'global',
-      course_id: coupon.courseId,
       code: coupon.code,
       discount_percentage: coupon.discountPercentage,
       max_uses: coupon.maxUses,
@@ -334,9 +383,19 @@ export async function syncCouponToSupabase(coupon: CouponCode): Promise<boolean>
       expires_at: coupon.expiresAt,
       is_active: coupon.isActive,
     };
-    const { error } = await supabase.from('coupons').upsert(row);
+    if (coupon.courseId) {
+      row.course_id = coupon.courseId;
+    }
+    let { error } = await supabase.from('coupons').upsert(row);
+    if (error) {
+      console.warn('Initial coupons upsert warning, retrying core coupon fields:', error.message);
+      delete row.course_id;
+      const retry = await supabase.from('coupons').upsert(row);
+      error = retry.error;
+    }
     return !error;
-  } catch {
+  } catch (err) {
+    console.error('Exception syncing coupon to Supabase:', err);
     return false;
   }
 }
@@ -452,7 +511,8 @@ export async function fetchSupabaseLiveSessions(): Promise<LiveSession[] | null>
 // 17. Sync Support Ticket to Supabase
 export async function syncSupportTicketToSupabase(ticket: SupportTicket): Promise<boolean> {
   try {
-    const row = {
+    const isHugeAttachment = ticket.attachmentUrl?.startsWith('data:') && ticket.attachmentUrl.length > 80000;
+    const row: Record<string, any> = {
       id: ticket.id,
       platform_id: ticket.platformId,
       platform_name: ticket.platformName,
@@ -461,15 +521,23 @@ export async function syncSupportTicketToSupabase(ticket: SupportTicket): Promis
       title: ticket.title,
       message: ticket.message,
       severity: ticket.severity,
-      attachment_url: ticket.attachmentUrl,
+      attachment_url: isHugeAttachment ? '' : (ticket.attachmentUrl || ''),
       status: ticket.status,
-      admin_response: ticket.adminResponse,
-      created_at: ticket.createdAt,
-      updated_at: ticket.updatedAt,
+      admin_response: ticket.adminResponse || '',
+      created_at: ticket.createdAt || new Date().toISOString(),
+      updated_at: ticket.updatedAt || new Date().toISOString(),
     };
-    const { error } = await supabase.from('support_tickets').upsert(row);
+
+    let { error } = await supabase.from('support_tickets').upsert(row);
+    if (error) {
+      console.warn('Support ticket initial upsert warning, retrying lightweight attachment payload:', error.message);
+      row.attachment_url = '';
+      const retry = await supabase.from('support_tickets').upsert(row);
+      error = retry.error;
+    }
     return !error;
-  } catch {
+  } catch (err) {
+    console.error('Exception syncing support ticket to Supabase:', err);
     return false;
   }
 }
@@ -515,14 +583,16 @@ export async function syncUserProfileToSupabase(user: User): Promise<boolean> {
   try {
     const avatarUrl = user.avatar || user.photoUrl || '';
     const userPass = user.plainPassword || user.password || '';
+    const isHugeDataUrl = avatarUrl.startsWith('data:') && avatarUrl.length > 80000;
+
     const row: Record<string, any> = {
       id: user.id,
       email: user.email,
       name: user.name,
       role: user.role,
       phone: user.phone || '',
-      avatar: avatarUrl,
-      photo_url: avatarUrl,
+      avatar: isHugeDataUrl ? avatarUrl.substring(0, 1000) : avatarUrl,
+      photo_url: isHugeDataUrl ? avatarUrl.substring(0, 1000) : avatarUrl,
       platform_id: user.platformId || '',
       grade_level: user.gradeLevel || '',
       enrolled_course_ids: user.enrolledCourseIds || [],
@@ -555,10 +625,31 @@ export async function syncUserProfileToSupabase(user: User): Promise<boolean> {
       birth_date: user.birthDate || '',
       gender: user.gender || 'male',
       emergency_notes: user.emergencyNotes || '',
+      gps_location: user.gpsLocation || null,
+      admitted_at: user.admittedAt || null,
+      rejection_reason: user.rejectionReason || '',
+      frozen_at: user.frozenAt || null,
+      frozen_by: user.frozenBy || '',
     };
-    const { error } = await supabase.from('users_profile').upsert(row);
+
+    let { error } = await supabase.from('users_profile').upsert(row);
+
+    // Fallback: If upsert failed due to heavy base64 or field payload, strip heavy fields and retry
+    if (error) {
+      console.warn("Initial users_profile upsert error, retrying lightweight payload:", error.message);
+      row.avatar = '';
+      row.photo_url = '';
+      row.device_details = null;
+      const retryResult = await supabase.from('users_profile').upsert(row);
+      error = retryResult.error;
+      if (error) {
+        console.error("Critical error syncing user profile to Supabase:", error.message);
+      }
+    }
+
     return !error;
-  } catch {
+  } catch (err) {
+    console.error("Exception syncing user profile to Supabase:", err);
     return false;
   }
 }
@@ -612,6 +703,11 @@ export async function fetchSupabaseUserProfiles(): Promise<User[] | null> {
         birthDate: row.birth_date,
         gender: row.gender,
         emergencyNotes: row.emergency_notes,
+        gpsLocation: row.gps_location,
+        admittedAt: row.admitted_at,
+        rejectionReason: row.rejection_reason,
+        frozenAt: row.frozen_at,
+        frozenBy: row.frozen_by,
       };
     });
   } catch {
@@ -711,31 +807,51 @@ export async function deletePrintedCodesBatchFromSupabase(id: string): Promise<b
 // 25. Sync Exam to Supabase
 export async function syncExamToSupabase(exam: Exam): Promise<boolean> {
   try {
-    const row = {
+    const row: Record<string, any> = {
       id: exam.id,
       course_id: exam.courseId,
-      module_id: exam.moduleId,
-      lesson_id: exam.lessonId,
+      module_id: exam.moduleId || null,
+      lesson_id: exam.lessonId || null,
       title: exam.title,
-      description: exam.description,
+      description: exam.description || '',
       duration_minutes: exam.durationMinutes,
       passing_score_percent: exam.passingScorePercent,
       total_points: exam.totalPoints,
-      questions_data: exam.questions,
-      max_attempts: exam.maxAttempts,
-      allow_hints: exam.allowHints,
-      show_explanation: exam.showExplanationAfterSubmit,
-      shuffle_questions: exam.shuffleQuestions,
-      enable_anti_cheat: exam.enableAntiCheat,
-      strict_fullscreen: exam.strictFullscreenEnforced,
+      questions_data: exam.questions || [],
+      max_attempts: exam.maxAttempts || 3,
+      allow_hints: exam.allowHints ?? true,
+      show_explanation: exam.showExplanationAfterSubmit ?? true,
+      shuffle_questions: exam.shuffleQuestions ?? false,
+      enable_anti_cheat: exam.enableAntiCheat ?? true,
+      strict_fullscreen: exam.strictFullscreenEnforced ?? true,
       status: exam.status || 'published',
       is_published: exam.isPublished ?? true,
       attempts_count: exam.attemptsCount || 0,
       created_at: exam.createdAt || new Date().toISOString(),
     };
-    const { error } = await supabase.from('exams').upsert(row);
+
+    let { error } = await supabase.from('exams').upsert(row);
+
+    if (error) {
+      console.warn('Initial exams upsert warning, retrying core exam fields:', error.message);
+      const fallbackRow = {
+        id: exam.id,
+        course_id: exam.courseId,
+        lesson_id: exam.lessonId || null,
+        title: exam.title,
+        description: exam.description || '',
+        duration_minutes: exam.durationMinutes,
+        passing_score_percent: exam.passingScorePercent,
+        total_points: exam.totalPoints,
+        questions_data: exam.questions || [],
+      };
+      const retry = await supabase.from('exams').upsert(fallbackRow);
+      error = retry.error;
+    }
+
     return !error;
-  } catch {
+  } catch (err) {
+    console.error('Exception syncing exam to Supabase:', err);
     return false;
   }
 }
@@ -787,33 +903,44 @@ export async function deleteExamFromSupabase(id: string): Promise<boolean> {
 // 28. Sync Assignment to Supabase
 export async function syncAssignmentToSupabase(assignment: Assignment): Promise<boolean> {
   try {
-    const row = {
+    const isHugeAttachment = assignment.conceptSheetAttachmentUrl?.startsWith('data:') && assignment.conceptSheetAttachmentUrl.length > 80000;
+    const row: Record<string, any> = {
       id: assignment.id,
       course_id: assignment.courseId,
-      module_id: assignment.moduleId,
-      lesson_id: assignment.lessonId,
+      module_id: assignment.moduleId || null,
+      lesson_id: assignment.lessonId || null,
       title: assignment.title,
-      description: assignment.description,
-      subject: assignment.subject,
-      concept_sheet_title: assignment.conceptSheetTitle,
-      concept_sheet_content: assignment.conceptSheetContent,
-      concept_sheet_attachment_url: assignment.conceptSheetAttachmentUrl,
+      description: assignment.description || '',
+      subject: assignment.subject || '',
+      concept_sheet_title: assignment.conceptSheetTitle || '',
+      concept_sheet_content: assignment.conceptSheetContent || '',
+      concept_sheet_attachment_url: isHugeAttachment ? '' : (assignment.conceptSheetAttachmentUrl || ''),
       duration_minutes: assignment.durationMinutes,
       passing_score_percent: assignment.passingScorePercent,
       total_points: assignment.totalPoints,
-      questions_data: assignment.questions,
+      questions_data: assignment.questions || [],
       max_attempts: assignment.maxAttempts,
-      allow_concept_sheet: assignment.allowConceptSheet,
-      show_model_answer: assignment.showModelAnswerAfterSubmission,
-      auto_grading: assignment.autoGrading,
-      due_date: assignment.dueDate,
-      status: assignment.status,
-      is_published: assignment.isPublished,
-      created_at: assignment.createdAt,
+      allow_concept_sheet: assignment.allowConceptSheet ?? true,
+      show_model_answer: assignment.showModelAnswerAfterSubmission ?? true,
+      auto_grading: assignment.autoGrading ?? true,
+      due_date: assignment.dueDate || null,
+      status: assignment.status || 'published',
+      is_published: assignment.isPublished ?? true,
+      created_at: assignment.createdAt || new Date().toISOString(),
     };
-    const { error } = await supabase.from('assignments').upsert(row);
+
+    let { error } = await supabase.from('assignments').upsert(row);
+
+    if (error) {
+      console.warn('Initial assignment upsert warning, retrying without heavy attachment payload:', error.message);
+      row.concept_sheet_attachment_url = '';
+      const retry = await supabase.from('assignments').upsert(row);
+      error = retry.error;
+    }
+
     return !error;
-  } catch {
+  } catch (err) {
+    console.error('Exception syncing assignment to Supabase:', err);
     return false;
   }
 }

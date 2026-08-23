@@ -46,6 +46,7 @@ import {
   AlertCircle,
   Clock,
   ShieldAlert,
+  UserPlus,
 } from 'lucide-react';
 
 export const SuperAdminDashboard: React.FC = () => {
@@ -69,6 +70,7 @@ export const SuperAdminDashboard: React.FC = () => {
     updateUserAccountStatus,
     updateStudentAdmissionData,
     deleteUserProfile,
+    addNewUserProfile,
     depositRequests,
     paymentSettings,
     updateDepositRequestStatus,
@@ -118,6 +120,27 @@ export const SuperAdminDashboard: React.FC = () => {
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const [editingPlatform, setEditingPlatform] = useState<EducationalPlatform | null>(null);
   const [credentialsModalPlatform, setCredentialsModalPlatform] = useState<EducationalPlatform | null>(null);
+
+  // Add Board Member / Platform Staff / New Student Modal States
+  const [isAddMemberModalOpen, setIsAddMemberModalOpen] = useState(false);
+  const [newMemberForm, setNewMemberForm] = useState({
+    role: 'board_member' as User['role'],
+    name: '',
+    fourPartName: '',
+    email: '',
+    password: '',
+    phone: '',
+    nationalId: '',
+    gradeLevel: 'الصف الثالث الثانوي',
+    governorate: 'القاهرة',
+    city: 'القاهرة',
+    schoolName: '',
+    guardianPhone: '',
+    guardianJob: '',
+    accountStatus: 'active' as const,
+  });
+  const [isAddingMemberSubmitting, setIsAddingMemberSubmitting] = useState(false);
+  const [addMemberErrorMsg, setAddMemberErrorMsg] = useState('');
 
   // Admin Master Password States for Student Password Reveal
   const [adminPasswordInput, setAdminPasswordInput] = useState('');
@@ -1076,6 +1099,18 @@ export const SuperAdminDashboard: React.FC = () => {
                   <option value="الغربية">الغربية</option>
                   <option value="الشرقية">الشرقية</option>
                 </select>
+
+                <button
+                  type="button"
+                  onClick={() => {
+                    setAddMemberErrorMsg('');
+                    setIsAddMemberModalOpen(true);
+                  }}
+                  className="px-4 py-2.5 rounded-xl text-xs font-black bg-gradient-to-r from-cyan-500 to-emerald-500 hover:from-cyan-400 hover:to-emerald-400 text-slate-950 shadow-md shadow-cyan-950/20 flex items-center gap-2 cursor-pointer shrink-0 transition-all active:scale-95 border border-cyan-300 dark:border-cyan-700"
+                >
+                  <UserPlus className="w-4 h-4" />
+                  <span>إضافة عضو جديد / مجلس إدارة / طالب</span>
+                </button>
               </div>
             </div>
           </div>
@@ -3275,6 +3310,342 @@ export const SuperAdminDashboard: React.FC = () => {
                 <span>تأكيد الإجراء وتوثيق السبب للطالب</span>
               </button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal: Add Platform Member / Board Member / Student */}
+      {isAddMemberModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-md animate-fade-in">
+          <div className={`w-full max-w-2xl max-h-[90vh] overflow-y-auto rounded-3xl p-6 shadow-2xl border space-y-5 dir-rtl ${
+            isLight ? 'bg-white border-slate-200 text-slate-900' : 'bg-slate-900 border-slate-800 text-white'
+          }`}>
+            <div className="flex items-center justify-between pb-4 border-b border-slate-200 dark:border-slate-800">
+              <div className="flex items-center gap-3">
+                <div className="p-3 rounded-2xl bg-cyan-500/10 text-cyan-500 border border-cyan-500/20">
+                  <UserPlus className="w-6 h-6" />
+                </div>
+                <div>
+                  <h3 className="text-base font-black">إضافة عضو جديد / مجلس إدارة / طالب</h3>
+                  <p className="text-xs text-slate-500">تسجيل بيانات الحساب مباشرة ورفعها لقواعد البيانات السحابية</p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setIsAddMemberModalOpen(false)}
+                className="p-2 rounded-xl text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 cursor-pointer"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            {addMemberErrorMsg && (
+              <div className="p-3.5 rounded-2xl bg-rose-500/10 border border-rose-500/20 text-rose-500 text-xs font-bold flex items-center gap-2">
+                <AlertCircle className="w-4 h-4 shrink-0" />
+                <span>{addMemberErrorMsg}</span>
+              </div>
+            )}
+
+            <form
+              onSubmit={async (e) => {
+                e.preventDefault();
+                setAddMemberErrorMsg('');
+
+                if (!newMemberForm.fourPartName.trim() || newMemberForm.fourPartName.trim().split(/\s+/).length < 2) {
+                  setAddMemberErrorMsg('يرجى إدخال الاسم الكامل (ثنائي على الأقل والأفضل رباعي).');
+                  return;
+                }
+                if (!newMemberForm.email.trim() || !newMemberForm.email.includes('@')) {
+                  setAddMemberErrorMsg('يرجى إدخال بريد إلكتروني صحيح.');
+                  return;
+                }
+                if (!newMemberForm.password.trim() || newMemberForm.password.length < 6) {
+                  setAddMemberErrorMsg('كلمة المرور يجب ألا تقل عن 6 خانات.');
+                  return;
+                }
+
+                setIsAddingMemberSubmitting(true);
+                try {
+                  const res = await addNewUserProfile({
+                    name: newMemberForm.fourPartName.trim(),
+                    fourPartName: newMemberForm.fourPartName.trim(),
+                    email: newMemberForm.email.trim().toLowerCase(),
+                    plainPassword: newMemberForm.password.trim(),
+                    password: newMemberForm.password.trim(),
+                    role: newMemberForm.role,
+                    phone: newMemberForm.phone.trim(),
+                    nationalId: newMemberForm.nationalId.trim(),
+                    gradeLevel: newMemberForm.gradeLevel,
+                    governorate: newMemberForm.governorate,
+                    city: newMemberForm.city,
+                    schoolName: newMemberForm.schoolName,
+                    guardianPhone: newMemberForm.guardianPhone.trim(),
+                    guardianJob: newMemberForm.guardianJob.trim(),
+                    accountStatus: newMemberForm.accountStatus,
+                    enrolledCourseIds: [],
+                    createdAt: new Date().toISOString(),
+                  });
+
+                  if (!res.success) {
+                    setAddMemberErrorMsg(res.message);
+                  } else {
+                    setIsAddMemberModalOpen(false);
+                    setNewMemberForm({
+                      role: 'board_member',
+                      name: '',
+                      fourPartName: '',
+                      email: '',
+                      password: '',
+                      phone: '',
+                      nationalId: '',
+                      gradeLevel: 'الصف الثالث الثانوي',
+                      governorate: 'القاهرة',
+                      city: 'القاهرة',
+                      schoolName: '',
+                      guardianPhone: '',
+                      guardianJob: '',
+                      accountStatus: 'active',
+                    });
+                  }
+                } catch (err: any) {
+                  setAddMemberErrorMsg('حدث خطأ أثناء إضافة الحساب: ' + (err?.message || 'خطأ غير معروف'));
+                } finally {
+                  setIsAddingMemberSubmitting(false);
+                }
+              }}
+              className="space-y-4 text-xs font-medium"
+            >
+              {/* Role Selection */}
+              <div className="space-y-1.5">
+                <label className="block text-xs font-bold text-slate-700 dark:text-slate-300">
+                  الرتبة والدور الإداري <span className="text-rose-500">*</span>
+                </label>
+                <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+                  {[
+                    { id: 'board_member', label: 'عضو مجلس إدارة', desc: 'إشراف وقيادة عليا' },
+                    { id: 'super_admin', label: 'مشرف عام', desc: 'إدارة المنظومة بالكامل' },
+                    { id: 'teacher', label: 'معلم / محاضر', desc: 'إدارة الكورسات والطلاب' },
+                    { id: 'staff', label: 'مسؤول إداري', desc: 'شؤون طلاب ومتابعة' },
+                    { id: 'student', label: 'طالب جديد', desc: 'تسجيل في المنظومة' },
+                  ].map((r) => (
+                    <button
+                      key={r.id}
+                      type="button"
+                      onClick={() => setNewMemberForm({ ...newMemberForm, role: r.id as any })}
+                      className={`p-3 rounded-2xl border text-right transition-all cursor-pointer ${
+                        newMemberForm.role === r.id
+                          ? 'bg-cyan-500/10 border-cyan-500 text-cyan-500 font-black shadow-sm'
+                          : 'bg-slate-50 dark:bg-slate-950 border-slate-200 dark:border-slate-800 text-slate-600 dark:text-slate-400'
+                      }`}
+                    >
+                      <div className="font-bold text-xs">{r.label}</div>
+                      <div className="text-[10px] opacity-75">{r.desc}</div>
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Four Part Name */}
+              <div className="space-y-1.5">
+                <label className="block text-xs font-bold text-slate-700 dark:text-slate-300">
+                  الاسم الرباعي الكامل <span className="text-rose-500">*</span>
+                </label>
+                <input
+                  type="text"
+                  required
+                  value={newMemberForm.fourPartName}
+                  onChange={(e) => setNewMemberForm({ ...newMemberForm, fourPartName: e.target.value, name: e.target.value })}
+                  placeholder="مثال: أحمد محمد محمود علي"
+                  className="w-full px-3.5 py-2.5 rounded-xl bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-800 text-slate-900 dark:text-white placeholder-slate-400 focus:border-cyan-500 focus:outline-none"
+                />
+              </div>
+
+              {/* Email & Password */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div className="space-y-1.5">
+                  <label className="block text-xs font-bold text-slate-700 dark:text-slate-300">
+                    البريد الإلكتروني <span className="text-rose-500">*</span>
+                  </label>
+                  <input
+                    type="email"
+                    required
+                    value={newMemberForm.email}
+                    onChange={(e) => setNewMemberForm({ ...newMemberForm, email: e.target.value })}
+                    placeholder="user@example.com"
+                    className="w-full px-3.5 py-2.5 rounded-xl bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-800 text-slate-900 dark:text-white placeholder-slate-400 focus:border-cyan-500 focus:outline-none"
+                  />
+                </div>
+
+                <div className="space-y-1.5">
+                  <label className="block text-xs font-bold text-slate-700 dark:text-slate-300">
+                    كلمة المرور <span className="text-rose-500">*</span>
+                  </label>
+                  <input
+                    type="text"
+                    required
+                    value={newMemberForm.password}
+                    onChange={(e) => setNewMemberForm({ ...newMemberForm, password: e.target.value })}
+                    placeholder="كلمة مرور الحساب (6 خانات+)"
+                    className="w-full px-3.5 py-2.5 rounded-xl bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-800 text-slate-900 dark:text-white placeholder-slate-400 focus:border-cyan-500 focus:outline-none font-mono"
+                  />
+                </div>
+              </div>
+
+              {/* Phone & National ID */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div className="space-y-1.5">
+                  <label className="block text-xs font-bold text-slate-700 dark:text-slate-300">
+                    رقم الهاتف (واتساب)
+                  </label>
+                  <input
+                    type="tel"
+                    value={newMemberForm.phone}
+                    onChange={(e) => setNewMemberForm({ ...newMemberForm, phone: e.target.value })}
+                    placeholder="010XXXXXXXX"
+                    className="w-full px-3.5 py-2.5 rounded-xl bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-800 text-slate-900 dark:text-white placeholder-slate-400 focus:border-cyan-500 focus:outline-none font-mono"
+                  />
+                </div>
+
+                <div className="space-y-1.5">
+                  <label className="block text-xs font-bold text-slate-700 dark:text-slate-300">
+                    الرقم القومي (14 رقم)
+                  </label>
+                  <input
+                    type="text"
+                    maxLength={14}
+                    value={newMemberForm.nationalId}
+                    onChange={(e) => setNewMemberForm({ ...newMemberForm, nationalId: e.target.value })}
+                    placeholder="3010101XXXXXXXX"
+                    className="w-full px-3.5 py-2.5 rounded-xl bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-800 text-slate-900 dark:text-white placeholder-slate-400 focus:border-cyan-500 focus:outline-none font-mono"
+                  />
+                </div>
+              </div>
+
+              {/* Student specific fields */}
+              {newMemberForm.role === 'student' && (
+                <>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 p-3 rounded-2xl bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800">
+                    <div className="space-y-1.5">
+                      <label className="block text-xs font-bold text-slate-700 dark:text-slate-300">
+                        الصف الدراسي
+                      </label>
+                      <select
+                        value={newMemberForm.gradeLevel}
+                        onChange={(e) => setNewMemberForm({ ...newMemberForm, gradeLevel: e.target.value })}
+                        className="w-full px-3.5 py-2.5 rounded-xl bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-800 text-slate-900 dark:text-white focus:border-cyan-500 focus:outline-none"
+                      >
+                        <option value="الصف الأول الثانوي">الصف الأول الثانوي</option>
+                        <option value="الصف الثاني الثانوي">الصف الثاني الثانوي</option>
+                        <option value="الصف الثالث الثانوي">الصف الثالث الثانوي</option>
+                      </select>
+                    </div>
+
+                    <div className="space-y-1.5">
+                      <label className="block text-xs font-bold text-slate-700 dark:text-slate-300">
+                        المحافظة
+                      </label>
+                      <select
+                        value={newMemberForm.governorate}
+                        onChange={(e) => setNewMemberForm({ ...newMemberForm, governorate: e.target.value })}
+                        className="w-full px-3.5 py-2.5 rounded-xl bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-800 text-slate-900 dark:text-white focus:border-cyan-500 focus:outline-none"
+                      >
+                        <option value="القاهرة">القاهرة</option>
+                        <option value="الجيزة">الجيزة</option>
+                        <option value="الإسكندرية">الإسكندرية</option>
+                        <option value="الدقهلية">الدقهلية</option>
+                        <option value="الغربية">الغربية</option>
+                        <option value="الشرقية">الشرقية</option>
+                        <option value="المنوفية">المنوفية</option>
+                        <option value="البحيرة">البحيرة</option>
+                        <option value="كفر الشيخ">كفر الشيخ</option>
+                        <option value="القليوبية">القليوبية</option>
+                        <option value="أسيوط">أسيوط</option>
+                        <option value="سوهاج">سوهاج</option>
+                        <option value="قنا">قنا</option>
+                        <option value="الأقصر">الأقصر</option>
+                        <option value="أسوان">أسوان</option>
+                      </select>
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <div className="space-y-1.5">
+                      <label className="block text-xs font-bold text-slate-700 dark:text-slate-300">
+                        هاتف ولي الأمر
+                      </label>
+                      <input
+                        type="tel"
+                        value={newMemberForm.guardianPhone}
+                        onChange={(e) => setNewMemberForm({ ...newMemberForm, guardianPhone: e.target.value })}
+                        placeholder="010XXXXXXXX"
+                        className="w-full px-3.5 py-2.5 rounded-xl bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-800 text-slate-900 dark:text-white placeholder-slate-400 focus:border-cyan-500 focus:outline-none font-mono"
+                      />
+                    </div>
+
+                    <div className="space-y-1.5">
+                      <label className="block text-xs font-bold text-slate-700 dark:text-slate-300">
+                        وظيفة ولي الأمر
+                      </label>
+                      <input
+                        type="text"
+                        value={newMemberForm.guardianJob}
+                        onChange={(e) => setNewMemberForm({ ...newMemberForm, guardianJob: e.target.value })}
+                        placeholder="مهندس / معلم / طبيب..."
+                        className="w-full px-3.5 py-2.5 rounded-xl bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-800 text-slate-900 dark:text-white placeholder-slate-400 focus:border-cyan-500 focus:outline-none"
+                      />
+                    </div>
+                  </div>
+                </>
+              )}
+
+              {/* Account status */}
+              <div className="space-y-1.5">
+                <label className="block text-xs font-bold text-slate-700 dark:text-slate-300">
+                  حالة الحساب عند الاعتماد
+                </label>
+                <div className="flex items-center gap-4">
+                  <label className="flex items-center gap-2 cursor-pointer">
+                    <input
+                      type="radio"
+                      name="accountStatus"
+                      checked={newMemberForm.accountStatus === 'active'}
+                      onChange={() => setNewMemberForm({ ...newMemberForm, accountStatus: 'active' })}
+                      className="text-cyan-500 focus:ring-cyan-500"
+                    />
+                    <span className="text-xs font-bold text-emerald-500">حساب مفعل ومقبول فوراً</span>
+                  </label>
+                  <label className="flex items-center gap-2 cursor-pointer">
+                    <input
+                      type="radio"
+                      name="accountStatus"
+                      checked={newMemberForm.accountStatus === 'pending_review'}
+                      onChange={() => setNewMemberForm({ ...newMemberForm, accountStatus: 'pending_review' })}
+                      className="text-cyan-500 focus:ring-cyan-500"
+                    />
+                    <span className="text-xs font-bold text-amber-500">قيد المراجعة الإدارية</span>
+                  </label>
+                </div>
+              </div>
+
+              {/* Actions */}
+              <div className="flex items-center justify-end gap-3 pt-4 border-t border-slate-200 dark:border-slate-800">
+                <button
+                  type="button"
+                  onClick={() => setIsAddMemberModalOpen(false)}
+                  className="px-5 py-2.5 rounded-xl text-xs font-bold text-slate-600 dark:text-slate-400 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 cursor-pointer"
+                >
+                  إلغاء
+                </button>
+                <button
+                  type="submit"
+                  disabled={isAddingMemberSubmitting}
+                  className="px-6 py-2.5 rounded-xl text-xs font-black bg-gradient-to-r from-cyan-500 to-emerald-500 hover:from-cyan-400 hover:to-emerald-400 text-slate-950 shadow-lg flex items-center gap-2 cursor-pointer disabled:opacity-50"
+                >
+                  <CheckCircle2 className="w-4 h-4" />
+                  <span>{isAddingMemberSubmitting ? 'جاري الحفظ والرفع لـ Supabase...' : 'حفظ وإنشاء الحساب فوراً'}</span>
+                </button>
+              </div>
+            </form>
           </div>
         </div>
       )}

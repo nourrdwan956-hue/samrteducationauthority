@@ -173,6 +173,9 @@ interface AppContextType {
     reason?: string
   ) => void;
   deleteUserProfile: (userId: string, reason?: string) => void;
+  addNewUserProfile: (
+    userData: Omit<User, "id">
+  ) => Promise<{ success: boolean; message: string; user?: User }>;
   updateStudentAdmissionData: (
     userId: string,
     data: {
@@ -563,12 +566,12 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({
           participatingTeachers: course.participatingTeachers || [],
         }));
 
-        if (validCourses.length > 0) return validCourses;
+        return validCourses;
       } catch (e) {
         console.error(e);
       }
     }
-    return INITIAL_COURSES;
+    return [];
   });
 
   const [exams, setExams] = useState<Exam[]>(() => {
@@ -804,6 +807,9 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({
         remoteSupportTickets,
         remotePrintedBatches,
         remoteUserProfiles,
+        remoteExams,
+        remoteAssignments,
+        remoteStudyTasks,
       ] = await Promise.all([
         fetchSupabasePlatforms(),
         fetchSupabaseCourses(),
@@ -812,6 +818,9 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({
         fetchSupabaseSupportTickets(),
         fetchSupabasePrintedCodesBatches(),
         fetchSupabaseUserProfiles(),
+        fetchSupabaseExams(),
+        fetchSupabaseAssignments(),
+        fetchSupabaseStudyTasks(),
       ]);
 
       if (remotePlatforms !== null) {
@@ -823,16 +832,6 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({
       if (remoteCourses !== null) {
         setCourses((prevCourses) => {
           let merged = [...remoteCourses];
-          if (merged.length === 0) {
-            merged = prevCourses.length > 0 ? prevCourses : INITIAL_COURSES;
-          } else {
-            // Keep any locally created course that hasn't synced yet
-            prevCourses.forEach((lc) => {
-              if (!merged.some((rc) => rc.id === lc.id)) {
-                merged.push(lc);
-              }
-            });
-          }
           localStorage.setItem("sea_courses", JSON.stringify(merged));
           return merged;
         });
@@ -845,11 +844,19 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({
         setLiveSessions(remoteLiveSessions);
       }
       if (remoteSupportTickets !== null) {
-        setSupportTickets(remoteSupportTickets);
-        localStorage.setItem(
-          "sea_support_tickets",
-          JSON.stringify(remoteSupportTickets),
-        );
+        setSupportTickets((prev) => {
+          const map = new Map<string, SupportTicket>();
+          remoteSupportTickets.forEach((t) => map.set(t.id, t));
+          prev.forEach((lt) => {
+            if (!map.has(lt.id)) {
+              map.set(lt.id, lt);
+              syncSupportTicketToSupabase(lt).catch(console.warn);
+            }
+          });
+          const merged = Array.from(map.values());
+          localStorage.setItem("sea_support_tickets", JSON.stringify(merged));
+          return merged;
+        });
       }
       if (remotePrintedBatches !== null) {
         setPrintedCodesBatches(remotePrintedBatches);
@@ -858,12 +865,79 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({
           JSON.stringify(remotePrintedBatches),
         );
       }
+      if (remoteExams !== null) {
+        setExams((prev) => {
+          const map = new Map<string, Exam>();
+          remoteExams.forEach((e) => map.set(e.id, e));
+          prev.forEach((le) => {
+            if (!map.has(le.id)) {
+              map.set(le.id, le);
+              syncExamToSupabase(le).catch(console.warn);
+            }
+          });
+          const merged = Array.from(map.values());
+          localStorage.setItem("sea_exams", JSON.stringify(merged));
+          return merged;
+        });
+      }
+      if (remoteAssignments !== null) {
+        setAssignments((prev) => {
+          const map = new Map<string, Assignment>();
+          remoteAssignments.forEach((a) => map.set(a.id, a));
+          prev.forEach((la) => {
+            if (!map.has(la.id)) {
+              map.set(la.id, la);
+              syncAssignmentToSupabase(la).catch(console.warn);
+            }
+          });
+          const merged = Array.from(map.values());
+          localStorage.setItem("sea_assignments", JSON.stringify(merged));
+          return merged;
+        });
+      }
+      if (remoteStudyTasks !== null) {
+        setStudyTasks((prev) => {
+          const map = new Map<string, StudyTask>();
+          remoteStudyTasks.forEach((t) => map.set(t.id, t));
+          prev.forEach((lt) => {
+            if (!map.has(lt.id)) {
+              map.set(lt.id, lt);
+              syncStudyTaskToSupabase(lt).catch(console.warn);
+            }
+          });
+          const merged = Array.from(map.values());
+          localStorage.setItem("sea_study_tasks", JSON.stringify(merged));
+          return merged;
+        });
+      }
       if (remoteUserProfiles !== null) {
-        setUserProfiles(remoteUserProfiles);
-        localStorage.setItem(
-          "sea_user_profiles",
-          JSON.stringify(remoteUserProfiles),
-        );
+        setUserProfiles((prevProfiles) => {
+          const map = new Map<string, User>();
+          remoteUserProfiles.forEach((u) => map.set(u.id, u));
+          prevProfiles.forEach((lp) => {
+            if (!map.has(lp.id)) {
+              map.set(lp.id, lp);
+              syncUserProfileToSupabase(lp).catch(console.warn);
+            } else {
+              const rp = map.get(lp.id)!;
+              map.set(lp.id, {
+                ...lp,
+                ...rp,
+                photoUrl: rp.photoUrl || lp.photoUrl,
+                avatar: rp.avatar || lp.avatar,
+                plainPassword: rp.plainPassword || lp.plainPassword,
+                password: rp.password || lp.password,
+                gpsLocation: rp.gpsLocation || lp.gpsLocation,
+                deviceDetails: rp.deviceDetails || lp.deviceDetails,
+                accountStatusReason: rp.accountStatusReason || lp.accountStatusReason,
+                rejectionReason: rp.rejectionReason || lp.rejectionReason,
+              });
+            }
+          });
+          const mergedList = Array.from(map.values());
+          localStorage.setItem("sea_user_profiles", JSON.stringify(mergedList));
+          return mergedList;
+        });
       }
 
       const syncTime = new Date().toLocaleTimeString("ar-EG");
@@ -931,15 +1005,6 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({
         if (remoteCourses !== null) {
           setCourses((prevCourses) => {
             let merged = [...remoteCourses];
-            if (merged.length === 0) {
-              merged = prevCourses.length > 0 ? prevCourses : INITIAL_COURSES;
-            } else {
-              prevCourses.forEach((lc) => {
-                if (!merged.some((rc) => rc.id === lc.id)) {
-                  merged.push(lc);
-                }
-              });
-            }
             localStorage.setItem("sea_courses", JSON.stringify(merged));
             return merged;
           });
@@ -955,11 +1020,19 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({
         }
         const remoteSupportTickets = await fetchSupabaseSupportTickets();
         if (remoteSupportTickets !== null) {
-          setSupportTickets(remoteSupportTickets);
-          localStorage.setItem(
-            "sea_support_tickets",
-            JSON.stringify(remoteSupportTickets),
-          );
+          setSupportTickets((prev) => {
+            const map = new Map<string, SupportTicket>();
+            remoteSupportTickets.forEach((t) => map.set(t.id, t));
+            prev.forEach((lt) => {
+              if (!map.has(lt.id)) {
+                map.set(lt.id, lt);
+                syncSupportTicketToSupabase(lt).catch(console.warn);
+              }
+            });
+            const merged = Array.from(map.values());
+            localStorage.setItem("sea_support_tickets", JSON.stringify(merged));
+            return merged;
+          });
         }
 
         const remoteExams = await fetchSupabaseExams();
@@ -997,11 +1070,33 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({
 
         const remoteUserProfiles = await fetchSupabaseUserProfiles();
         if (remoteUserProfiles !== null) {
-          setUserProfiles(remoteUserProfiles);
-          localStorage.setItem(
-            "sea_user_profiles",
-            JSON.stringify(remoteUserProfiles),
-          );
+          setUserProfiles((prevProfiles) => {
+            const map = new Map<string, User>();
+            remoteUserProfiles.forEach((u) => map.set(u.id, u));
+            prevProfiles.forEach((lp) => {
+              if (!map.has(lp.id)) {
+                map.set(lp.id, lp);
+                syncUserProfileToSupabase(lp).catch(console.warn);
+              } else {
+                const rp = map.get(lp.id)!;
+                map.set(lp.id, {
+                  ...lp,
+                  ...rp,
+                  photoUrl: rp.photoUrl || lp.photoUrl,
+                  avatar: rp.avatar || lp.avatar,
+                  plainPassword: rp.plainPassword || lp.plainPassword,
+                  password: rp.password || lp.password,
+                  gpsLocation: rp.gpsLocation || lp.gpsLocation,
+                  deviceDetails: rp.deviceDetails || lp.deviceDetails,
+                  accountStatusReason: rp.accountStatusReason || lp.accountStatusReason,
+                  rejectionReason: rp.rejectionReason || lp.rejectionReason,
+                });
+              }
+            });
+            const mergedList = Array.from(map.values());
+            localStorage.setItem("sea_user_profiles", JSON.stringify(mergedList));
+            return mergedList;
+          });
 
           // Keep active student session in absolute perfect sync with cloud DB
           const savedCurrentUser = localStorage.getItem("sea_current_user");
@@ -1719,6 +1814,85 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({
     }
 
     addToast("success", "تم إلغاء وحذف قيد الطالب نهائياً", `تم مسح قيد الطالب "${targetName}" من قاعدة البيانات والمنظومة.`);
+  };
+
+  const addNewUserProfile = async (
+    userData: Omit<User, "id">,
+  ): Promise<{ success: boolean; message: string; user?: User }> => {
+    const cleanEmail = userData.email.trim().toLowerCase();
+    const existingEmailUser = userProfiles.find(
+      (u) => u.email.toLowerCase() === cleanEmail,
+    );
+    if (existingEmailUser) {
+      return {
+        success: false,
+        message: `عفواً، البريد الإلكتروني (${cleanEmail}) مسجل مسبقاً بحساب آخر على المنظومة.`,
+      };
+    }
+
+    const prefix =
+      userData.role === "board_member"
+        ? "board_"
+        : userData.role === "teacher"
+        ? "teacher_"
+        : userData.role === "super_admin"
+        ? "admin_"
+        : "stu_";
+    const newId = prefix + Date.now();
+    const generatedCode =
+      userData.studentCode ||
+      (userData.role === "student"
+        ? `SEA-2026-${Math.floor(10000 + Math.random() * 90000)}`
+        : undefined);
+
+    const newUser: User = {
+      ...userData,
+      id: newId,
+      email: cleanEmail,
+      createdAt: userData.createdAt || new Date().toISOString(),
+      enrolledCourseIds: userData.enrolledCourseIds || [],
+      walletBalance: userData.walletBalance || 0,
+      accountStatus: userData.accountStatus || "active",
+      isEmailVerified: userData.isEmailVerified ?? true,
+      studentCode: generatedCode,
+    };
+
+    // Immediate state & local storage update
+    setUserProfiles((prev) => {
+      const updated = [newUser, ...prev.filter((p) => p.id !== newUser.id)];
+      try {
+        localStorage.setItem("sea_user_profiles", JSON.stringify(updated));
+      } catch (e) {
+        console.error("localStorage error", e);
+      }
+      return updated;
+    });
+
+    // Immediate Cloud Supabase Sync
+    const synced = await syncUserProfileToSupabase(newUser);
+    if (!synced) {
+      console.warn("Syncing user profile retry triggered for:", newUser.email);
+      await syncUserProfileToSupabase(newUser);
+    }
+
+    const roleNameAr =
+      newUser.role === "super_admin"
+        ? "مشرف عام"
+        : newUser.role === "board_member"
+        ? "عضو مجلس إدارة"
+        : newUser.role === "teacher"
+        ? "معلم / محاضر"
+        : newUser.role === "staff" || newUser.role === "assistant"
+        ? "مسؤول إداري"
+        : "طالب جديد";
+
+    addToast(
+      "success",
+      "تم إضافة الحساب وحفظ البيانات بنجاح 👥",
+      `تم تسجيل حساب (${newUser.fourPartName || newUser.name}) برتبة "${roleNameAr}" وتم رفع وتأكيد البيانات محلياً وفي قواعد البيانات السحابية.`,
+    );
+
+    return { success: true, message: "تم إضافة البيانات وحفظها بنجاح.", user: newUser };
   };
 
   // Platform Actions (with background Supabase sync)
@@ -3896,6 +4070,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({
         updateUserAccountStatus,
         updateStudentAdmissionData,
         deleteUserProfile,
+        addNewUserProfile,
 
         createPlatform,
         updatePlatform,

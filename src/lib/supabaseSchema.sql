@@ -1,6 +1,6 @@
 -- ==============================================================================
--- SEA (Smart Education Authority) - Supabase Database Schema DDL
--- منصة السلطة التعليمية الذكية - هيكل جداول قاعدة بيانات Supabase المتكاملة
+-- SEA (Smart Education Authority) - Supabase Database Schema DDL & Auto-Migration
+-- منصة السلطة التعليمية الذكية - هيكل جداول وتحديثات قاعدة بيانات Supabase
 -- ==============================================================================
 
 -- 1. جدول المنصات التعليمية للمعلمين (Educational Platforms)
@@ -31,6 +31,9 @@ CREATE TABLE IF NOT EXISTS public.platforms (
     whatsapp_number TEXT,
     telegram_channel TEXT,
     facebook_page TEXT,
+    teacher_experience_years TEXT,
+    teacher_certificates TEXT,
+    teacher_highlights TEXT,
     created_at TIMESTAMPTZ DEFAULT NOW()
 );
 
@@ -43,8 +46,12 @@ CREATE TABLE IF NOT EXISTS public.courses (
     description TEXT,
     thumbnail TEXT,
     subject TEXT NOT NULL,
+    stage TEXT,
+    curriculum_type TEXT,
+    term TEXT,
     grade_level TEXT NOT NULL,
     price NUMERIC(10, 2) NOT NULL DEFAULT 250,
+    original_price NUMERIC(10, 2),
     discount_price NUMERIC(10, 2),
     is_free BOOLEAN DEFAULT FALSE,
     total_duration_minutes INTEGER DEFAULT 0,
@@ -53,7 +60,10 @@ CREATE TABLE IF NOT EXISTS public.courses (
     enrolled_count INTEGER DEFAULT 0,
     rating NUMERIC(3, 2) DEFAULT 5.0,
     status TEXT DEFAULT 'published' CHECK (status IN ('published', 'draft')),
+    scheduled_publish_date TEXT,
     tags JSONB DEFAULT '["عام", "ثانوية عامة"]'::jsonb,
+    requirements JSONB DEFAULT '[]'::jsonb,
+    what_you_will_learn JSONB DEFAULT '[]'::jsonb,
     modules_data JSONB DEFAULT '[]'::jsonb,
     created_at TIMESTAMPTZ DEFAULT NOW()
 );
@@ -62,6 +72,7 @@ CREATE TABLE IF NOT EXISTS public.courses (
 CREATE TABLE IF NOT EXISTS public.exams (
     id TEXT PRIMARY KEY,
     course_id TEXT NOT NULL REFERENCES public.courses(id) ON DELETE CASCADE,
+    module_id TEXT,
     lesson_id TEXT,
     title TEXT NOT NULL,
     description TEXT,
@@ -70,6 +81,14 @@ CREATE TABLE IF NOT EXISTS public.exams (
     total_points INTEGER NOT NULL DEFAULT 10,
     show_result_instant BOOLEAN DEFAULT TRUE,
     allow_retake BOOLEAN DEFAULT TRUE,
+    max_attempts INTEGER DEFAULT 3,
+    allow_hints BOOLEAN DEFAULT TRUE,
+    show_explanation BOOLEAN DEFAULT TRUE,
+    shuffle_questions BOOLEAN DEFAULT FALSE,
+    enable_anti_cheat BOOLEAN DEFAULT TRUE,
+    strict_fullscreen BOOLEAN DEFAULT TRUE,
+    status TEXT DEFAULT 'published',
+    is_published BOOLEAN DEFAULT TRUE,
     attempts_count INTEGER DEFAULT 0,
     questions_data JSONB DEFAULT '[]'::jsonb,
     created_at TIMESTAMPTZ DEFAULT NOW()
@@ -93,6 +112,7 @@ CREATE TABLE IF NOT EXISTS public.order_requests (
 CREATE TABLE IF NOT EXISTS public.coupons (
     id TEXT PRIMARY KEY,
     platform_id TEXT NOT NULL REFERENCES public.platforms(id) ON DELETE CASCADE,
+    course_id TEXT,
     code TEXT NOT NULL,
     discount_percentage INTEGER NOT NULL DEFAULT 20,
     max_uses INTEGER NOT NULL DEFAULT 100,
@@ -135,7 +155,7 @@ CREATE TABLE IF NOT EXISTS public.users_profile (
     id TEXT PRIMARY KEY,
     email TEXT NOT NULL UNIQUE,
     name TEXT NOT NULL,
-    role TEXT NOT NULL DEFAULT 'student' CHECK (role IN ('super_admin', 'teacher', 'student')),
+    role TEXT NOT NULL DEFAULT 'student' CHECK (role IN ('super_admin', 'teacher', 'student', 'board_member', 'admin', 'staff', 'assistant')),
     phone TEXT,
     avatar TEXT,
     photo_url TEXT,
@@ -170,6 +190,11 @@ CREATE TABLE IF NOT EXISTS public.users_profile (
     birth_date TEXT,
     gender TEXT DEFAULT 'male',
     emergency_notes TEXT,
+    gps_location JSONB,
+    admitted_at TIMESTAMPTZ,
+    rejection_reason TEXT,
+    frozen_at TIMESTAMPTZ,
+    frozen_by TEXT,
     created_at TIMESTAMPTZ DEFAULT NOW()
 );
 

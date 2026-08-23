@@ -135,11 +135,10 @@ export const TeacherDashboard: React.FC = () => {
 
   const teacherPlatform =
     platforms.find((p) => p.id === currentUser?.platformId) ||
-    platforms.find((p) => p.subject === 'اللغة الإنجليزية') ||
     platforms[0];
 
   const teacherCourses = (courses || []).filter(
-    (c) => c.platformId === teacherPlatform?.id || c.subject === 'اللغة الإنجليزية'
+    (c) => c.platformId === teacherPlatform?.id
   );
 
   const [activeTab, setActiveTab] = useState<TeacherTab>('overview');
