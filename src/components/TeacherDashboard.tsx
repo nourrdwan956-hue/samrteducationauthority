@@ -1171,7 +1171,7 @@ export const TeacherDashboard: React.FC = () => {
 
       {/* Modal: Edit Teacher Professional Profile */}
       {isEditProfileModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-sm animate-fade-in text-right">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-sm animate-fade-in text-right overflow-y-auto">
           <div className="w-full max-w-2xl rounded-3xl p-6 sm:p-8 border shadow-2xl space-y-6 bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800 text-slate-900 dark:text-white max-h-[90vh] overflow-y-auto custom-scrollbar">
             
             {/* Header */}
@@ -1339,8 +1339,8 @@ export const TeacherDashboard: React.FC = () => {
 
       {/* Delete Course Confirmation Modal */}
       {courseToDelete && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-sm animate-in fade-in duration-200">
-          <div className="w-full max-w-md rounded-3xl bg-white dark:bg-slate-900 border border-rose-500/30 p-6 shadow-2xl space-y-5 text-right">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-sm animate-in fade-in duration-200 overflow-y-auto">
+          <div className="w-full max-w-md max-h-[90vh] overflow-y-auto rounded-3xl bg-white dark:bg-slate-900 border border-rose-500/30 p-6 shadow-2xl space-y-5 text-right">
             <div className="w-12 h-12 rounded-2xl bg-rose-500/10 text-rose-500 flex items-center justify-center mx-auto">
               <Trash2 className="w-6 h-6" />
             </div>
