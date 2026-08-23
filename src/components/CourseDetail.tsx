@@ -46,6 +46,7 @@ export const CourseDetail: React.FC = () => {
   const {
     currentCourse,
     currentPlatform,
+    platforms,
     currentUser,
     exams,
     assignments,
@@ -138,6 +139,45 @@ export const CourseDetail: React.FC = () => {
           <Home className="w-4 h-4" />
           <span>العودة إلى الصفحة الرئيسية</span>
         </button>
+      </div>
+    );
+  }
+
+  // Check if the parent platform of this course is suspended
+  const parentPlat = (platforms || []).find((p) => p.id === currentCourse.platformId) || currentPlatform;
+  if (parentPlat?.status === 'suspended' && currentUser?.role !== 'super_admin' && currentUser?.role !== 'admin') {
+    return (
+      <div className="w-full max-w-3xl mx-auto py-16 px-4 text-right animate-fade-in" dir="rtl">
+        <div className="p-8 sm:p-10 rounded-3xl border border-amber-500/30 bg-slate-900/90 text-center space-y-6 shadow-2xl backdrop-blur-md">
+          <div className="w-20 h-20 rounded-3xl bg-amber-500/10 border border-amber-500/30 flex items-center justify-center mx-auto text-amber-400 shadow-lg">
+            <Lock className="w-10 h-10" />
+          </div>
+          <div className="space-y-2">
+            <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-amber-500/10 border border-amber-500/30 text-amber-300 text-xs font-black">
+              <span>تنبيه إداري من السلطة التعليمية SEA</span>
+            </div>
+            <h2 className="text-2xl sm:text-3xl font-black text-white">
+              هذا المقرر التعليمي موقوف ومجمد حالياً
+            </h2>
+            <p className="text-sm text-slate-300 max-w-lg mx-auto leading-relaxed">
+              تم تعليق منصة <strong className="text-amber-400">"{parentPlat.name}"</strong> التابع لها كورس <strong className="text-cyan-400">"{currentCourse.title}"</strong> بقرار إداري. لا يمكن تشغيل الفيديوهات أو حضور المحاضرات في الوقت الحالي.
+            </p>
+          </div>
+          <div className="pt-4 flex flex-col sm:flex-row items-center justify-center gap-3">
+            <button
+              onClick={() => setCurrentView('student_portal')}
+              className="w-full sm:w-auto px-6 py-3 rounded-xl bg-cyan-500 hover:bg-cyan-400 text-slate-950 font-black text-xs transition-all cursor-pointer shadow-md"
+            >
+              العودة إلى لوحة الطالب
+            </button>
+            <button
+              onClick={() => setCurrentView('marketplace')}
+              className="w-full sm:w-auto px-6 py-3 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-bold transition-all cursor-pointer"
+            >
+              تصفح باقي المنصات والكورسات
+            </button>
+          </div>
+        </div>
       </div>
     );
   }

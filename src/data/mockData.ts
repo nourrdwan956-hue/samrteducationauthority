@@ -9,7 +9,7 @@ export const FALLBACK_PLATFORM: EducationalPlatform = {
   teacherName: 'محمد رضوان',
   teacherTitle: 'معلم أول لغة إنجليزية',
   teacherEmail: 'Mrenglishlangue9190krt@mnsa.sea.com',
-  teacherPassword: '6@ff-engl1-00pmnes-sea',
+  teacherPassword: 'ff-engl1-00p$zmnes-sea',
   teacherPhone: '01099887766',
   teacherBio: 'معلم مادة اللغة الإنجليزية لجميع المراحل الثانوية والإعدادية، شرح مبسط ومتابعة مستمرة.',
   teacherAvatar: 'https://images.unsplash.com/photo-1568602471122-7832951cc4c5?auto=format&fit=crop&q=80&w=300&h=300',

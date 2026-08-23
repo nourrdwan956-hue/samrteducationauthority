@@ -122,12 +122,19 @@ export const PlatformMarketplace: React.FC = () => {
                   />
                   <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/30 to-transparent" />
 
-                  {/* Subject Tag */}
-                  <div
-                    className="absolute top-3 right-3 px-3 py-1 rounded-xl text-xs font-black shadow-lg backdrop-blur-md"
-                    style={{ backgroundColor: `${plat.themeColor}dd`, color: '#ffffff' }}
-                  >
-                    {plat.subject}
+                  {/* Subject Tag & Suspended Badge */}
+                  <div className="absolute top-3 right-3 flex items-center gap-1.5">
+                    {plat.status === 'suspended' && (
+                      <div className="px-2.5 py-1 rounded-xl text-[10px] font-black bg-amber-500 text-slate-950 shadow-lg animate-pulse">
+                        مجمدة إدارياً 🔒
+                      </div>
+                    )}
+                    <div
+                      className="px-3 py-1 rounded-xl text-xs font-black shadow-lg backdrop-blur-md"
+                      style={{ backgroundColor: `${plat.themeColor}dd`, color: '#ffffff' }}
+                    >
+                      {plat.subject}
+                    </div>
                   </div>
 
                   {/* Rating Tag */}

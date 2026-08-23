@@ -170,17 +170,8 @@ export const StudentSignUpPage: React.FC = () => {
 
       if (stream) {
         setCameraStream(stream);
-        if (videoRef.current) {
-          videoRef.current.srcObject = stream;
-          videoRef.current.setAttribute("playsinline", "true");
-          videoRef.current.setAttribute("webkit-playsinline", "true");
-          videoRef.current.muted = true;
-          try {
-            await videoRef.current.play();
-          } catch (playErr) {
-            console.log("Video auto play initiated:", playErr);
-          }
-        }
+        // The srcObject assignment is now handled safely by a useEffect
+        // to ensure videoRef.current is fully mounted in the DOM.
       } else {
         throw new Error(
           "لم نتمكن من تشغيل الكاميرا المباشرة تلقائياً. يمكنك الضغط على زر 'التقاط عبر كاميرا الهاتف' بالأسفل للتشغيل الفوري.",
@@ -376,6 +367,21 @@ export const StudentSignUpPage: React.FC = () => {
     setCountdown(null);
     startCamera();
   };
+
+  // Safe binding of video stream when component renders the video element
+  useEffect(() => {
+    if (step === "live_photo" && cameraStream && videoRef.current) {
+      if (videoRef.current.srcObject !== cameraStream) {
+        videoRef.current.srcObject = cameraStream;
+        videoRef.current.setAttribute("playsinline", "true");
+        videoRef.current.setAttribute("webkit-playsinline", "true");
+        videoRef.current.muted = true;
+        videoRef.current.play().catch(playErr => {
+          console.warn("Video auto play initiated:", playErr);
+        });
+      }
+    }
+  }, [step, cameraStream]);
 
   // Cleanup camera stream on unmount
   useEffect(() => {
@@ -1873,7 +1879,8 @@ export const StudentSignUpPage: React.FC = () => {
               accept="image/*"
               capture="user"
               onChange={handleNativePhotoUpload}
-              className="hidden"
+              className="absolute w-px h-px opacity-0 overflow-hidden pointer-events-none"
+              tabIndex={-1}
             />
             {/* Hidden gallery / file upload input (without capture constraint for mobile gallery selection) */}
             <input
@@ -1881,7 +1888,8 @@ export const StudentSignUpPage: React.FC = () => {
               type="file"
               accept="image/*"
               onChange={handleNativePhotoUpload}
-              className="hidden"
+              className="absolute w-px h-px opacity-0 overflow-hidden pointer-events-none"
+              tabIndex={-1}
             />
 
             <div className="mx-auto w-12 h-12 sm:w-16 sm:h-16 bg-cyan-100 dark:bg-cyan-900/30 text-cyan-600 dark:text-cyan-400 rounded-full flex items-center justify-center mb-2 shadow-lg shadow-cyan-500/20 border border-cyan-500/30">

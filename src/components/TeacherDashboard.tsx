@@ -291,6 +291,28 @@ export const TeacherDashboard: React.FC = () => {
       
       {/* Top Banner / Teacher Profile Header */}
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 space-y-6">
+
+        {/* Suspended Platform Warning Notice */}
+        {teacherPlatform?.status === 'suspended' && (
+          <div className="p-5 rounded-2xl bg-amber-500/15 border-2 border-amber-500/40 text-amber-900 dark:text-amber-200 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 shadow-lg backdrop-blur-md animate-pulse">
+            <div className="flex items-center gap-3">
+              <div className="p-2.5 rounded-xl bg-amber-500/20 text-amber-700 dark:text-amber-300">
+                <AlertTriangle className="w-6 h-6" />
+              </div>
+              <div className="text-right">
+                <h3 className="text-sm sm:text-base font-black">
+                  تنبيه إداري عاجل: هذه المنصة موقوفة ومجمدة حالياً بقرار من إدارة SEA
+                </h3>
+                <p className="text-xs text-amber-800 dark:text-amber-300/90 mt-0.5">
+                  تم حجب المنصة وجميع مقرراتها عن الطلاب مؤقتاً. يُرجى مراجعة إدارة المنظومة لإعادة التفعيل وتصحيح الحالة.
+                </p>
+              </div>
+            </div>
+            <span className="px-3 py-1 rounded-lg bg-amber-500 text-slate-950 text-xs font-black shrink-0">
+              حالة المنصة: مجمدة إدارياً
+            </span>
+          </div>
+        )}
         
         {/* Welcome Card */}
         <div className="relative overflow-hidden rounded-3xl bg-white dark:bg-gradient-to-r dark:from-slate-900 dark:via-slate-900 dark:to-cyan-950/40 border border-slate-200 dark:border-slate-800 p-6 sm:p-8 shadow-xl dark:shadow-2xl">
@@ -1102,7 +1124,7 @@ export const TeacherDashboard: React.FC = () => {
                 <div>
                   <span className="text-[11px] font-bold text-slate-500 dark:text-slate-400 block mb-1">كلمة المرور المشفرة:</span>
                   <div className="p-2.5 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 font-mono text-xs text-amber-700 dark:text-amber-300 break-all select-all flex items-center justify-between font-bold">
-                    <span>{teacherPlatform?.teacherPassword || '6@ff-engl1-00pmnes-sea'}</span>
+                    <span>{teacherPlatform?.teacherPassword || 'ff-engl1-00p$zmnes-sea'}</span>
                     <Lock className="w-3.5 h-3.5 text-slate-400 dark:text-slate-500" />
                   </div>
                 </div>

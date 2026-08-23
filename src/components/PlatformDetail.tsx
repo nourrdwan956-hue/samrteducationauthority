@@ -55,6 +55,50 @@ export const PlatformDetail: React.FC = () => {
     );
   }
 
+  // If the platform is frozen / suspended and user is not super_admin or admin
+  if (currentPlatform.status === 'suspended' && currentUser?.role !== 'super_admin' && currentUser?.role !== 'admin') {
+    return (
+      <div className="w-full max-w-3xl mx-auto py-16 px-4 text-right animate-fade-in" dir="rtl">
+        <div className={`p-8 sm:p-10 rounded-3xl border shadow-2xl text-center space-y-6 ${
+          isLight ? 'bg-white border-amber-200 shadow-amber-500/10' : 'bg-slate-900 border-amber-500/30 shadow-2xl'
+        }`}>
+          <div className="w-20 h-20 rounded-3xl bg-amber-500/10 dark:bg-amber-500/20 border border-amber-500/30 flex items-center justify-center mx-auto text-amber-600 dark:text-amber-400 shadow-lg">
+            <Lock className="w-10 h-10" />
+          </div>
+
+          <div className="space-y-2">
+            <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-amber-500/10 border border-amber-500/30 text-amber-700 dark:text-amber-300 text-xs font-black">
+              <span>تنبيه إداري من السلطة التعليمية SEA</span>
+            </div>
+            <h2 className={`text-2xl sm:text-3xl font-black ${isLight ? 'text-slate-900' : 'text-white'}`}>
+              المنصة التعليمية مجمدة وموقوفة حالياً
+            </h2>
+            <p className={`text-sm sm:text-base leading-relaxed max-w-lg mx-auto ${isLight ? 'text-slate-600' : 'text-slate-300'}`}>
+              تم تعليق وتجميد منصة <strong className="text-amber-600 dark:text-amber-400">"{currentPlatform.name}"</strong> للمعلم <strong className="text-cyan-600 dark:text-cyan-400">{currentPlatform.teacherName}</strong> بقرار من الإدارة المركزية. لا يمكن للطلاب الدخول إلى المنصة أو الاشتراك في كورساتها حتى إشعار آخر.
+            </p>
+          </div>
+
+          <div className="pt-4 flex flex-col sm:flex-row items-center justify-center gap-3">
+            <button
+              onClick={() => setCurrentView('home')}
+              className="w-full sm:w-auto px-6 py-3 rounded-xl bg-gradient-to-r from-cyan-500 to-sky-600 hover:from-cyan-400 hover:to-sky-500 text-slate-950 font-black text-xs transition-all shadow-md cursor-pointer"
+            >
+              العودة إلى الصفحة الرئيسية
+            </button>
+            <button
+              onClick={() => setCurrentView('marketplace')}
+              className={`w-full sm:w-auto px-6 py-3 rounded-xl text-xs font-bold transition-all cursor-pointer ${
+                isLight ? 'bg-slate-100 hover:bg-slate-200 text-slate-700' : 'bg-slate-800 hover:bg-slate-700 text-slate-200'
+              }`}
+            >
+              تصفح باقي المنصات النشطة
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   const platformCourses = (courses || []).filter((c) => {
     if (c.platformId !== currentPlatform.id) return false;
     if (currentUser?.role === 'teacher' || currentUser?.role === 'admin' || currentUser?.role === 'super_admin') {

@@ -185,6 +185,16 @@ export const StudentPortal: React.FC = () => {
       addToast('error', access.message);
       return;
     }
+    const targetCourse = courses.find((c) => c.id === courseId);
+    const parentPlat = platforms.find((p) => p.id === targetCourse?.platformId);
+    if (parentPlat?.status === 'suspended') {
+      addToast(
+        'error',
+        'المنصة موقوفة ومجمدة 🔒',
+        `تم تعليق منصة "${parentPlat.name}" بقرار من إدارة السلطة التعليمية SEA، ولا يمكن فتح هذا الكورس حالياً.`
+      );
+      return;
+    }
     if (access.isNewDevice) {
       addToast('info', access.message);
     }
@@ -199,6 +209,16 @@ export const StudentPortal: React.FC = () => {
       addToast('error', access.message);
       return;
     }
+    const targetCourse = courses.find((c) => c.id === teacher.courseId);
+    const parentPlat = platforms.find((p) => p.id === targetCourse?.platformId);
+    if (parentPlat?.status === 'suspended') {
+      addToast(
+        'error',
+        'المنصة موقوفة ومجمدة 🔒',
+        `تم تعليق منصة "${parentPlat.name}" بقرار من إدارة السلطة التعليمية SEA.`
+      );
+      return;
+    }
     if (access.isNewDevice) {
       addToast('info', access.message);
     }
@@ -211,6 +231,16 @@ export const StudentPortal: React.FC = () => {
     const access = verifyDeviceAccess();
     if (!access.success) {
       addToast('error', access.message);
+      return;
+    }
+    const targetCourse = courses.find((c) => c.id === courseId);
+    const parentPlat = platforms.find((p) => p.id === targetCourse?.platformId);
+    if (parentPlat?.status === 'suspended') {
+      addToast(
+        'error',
+        'المنصة موقوفة ومجمدة 🔒',
+        `تم تعليق منصة "${parentPlat.name}" بقرار من إدارة السلطة التعليمية SEA، ولا يمكن بدء هذا الامتحان حالياً.`
+      );
       return;
     }
     if (access.isNewDevice) {
