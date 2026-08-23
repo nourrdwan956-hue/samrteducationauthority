@@ -1731,19 +1731,37 @@ export const StudentPortal: React.FC = () => {
         
         <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-6 border-b border-slate-200 dark:border-slate-800 pb-6 mb-6">
           <div className="flex items-center gap-5">
-            <div className="w-20 h-20 rounded-3xl bg-gradient-to-br from-slate-100 to-slate-200 dark:from-slate-800 dark:to-slate-700 border border-slate-300 dark:border-slate-600 flex items-center justify-center text-slate-500 shadow-inner shrink-0">
-              <UserIcon className="w-10 h-10" />
+            <div className="w-20 h-20 sm:w-24 sm:h-24 rounded-3xl bg-gradient-to-br from-slate-100 to-slate-200 dark:from-slate-800 dark:to-slate-700 border-2 border-cyan-400/60 dark:border-cyan-500/50 flex items-center justify-center text-slate-500 shadow-lg shrink-0 overflow-hidden relative group">
+              {currentUser.profilePicture || currentUser.avatar ? (
+                <img
+                  src={currentUser.profilePicture || currentUser.avatar}
+                  alt={currentUser.fourPartName || currentUser.name}
+                  referrerPolicy="no-referrer"
+                  className="w-full h-full object-cover"
+                  onError={(e) => {
+                    (e.currentTarget as HTMLElement).style.display = 'none';
+                    const fallback = e.currentTarget.parentElement?.querySelector('.profile-pic-fallback');
+                    if (fallback) fallback.classList.remove('hidden');
+                  }}
+                />
+              ) : null}
+              <div className={`profile-pic-fallback ${currentUser.profilePicture || currentUser.avatar ? 'hidden' : 'flex'} flex-col items-center justify-center`}>
+                <UserIcon className="w-10 h-10 text-cyan-600 dark:text-cyan-400" />
+              </div>
             </div>
             <div>
-              <h3 className="text-2xl font-black text-slate-900 dark:text-white mb-1">
-                {currentUser.fourPartName || currentUser.name}
+              <h3 className="text-2xl font-black text-slate-900 dark:text-white mb-1 flex items-center gap-2">
+                <span>{currentUser.fourPartName || currentUser.name}</span>
+                <span className="px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/30 text-[10px] font-black">
+                  طالب معتمد
+                </span>
               </h3>
               <div className="flex flex-wrap items-center gap-2 text-xs font-bold font-mono">
                  <span className="text-cyan-600 dark:text-cyan-400 bg-cyan-50 dark:bg-cyan-900/30 px-2.5 py-1 rounded-lg border border-cyan-200 dark:border-cyan-800">
                    كود الطالب: {currentUser.studentCode || `SEA-${currentUser.id.slice(-6).toUpperCase()}`}
                  </span>
                  <span className="text-slate-500 dark:text-slate-400 bg-slate-100 dark:bg-slate-800 px-2.5 py-1 rounded-lg">
-                   تاريخ القيد: {currentUser.createdAt || new Date().toISOString().split('T')[0]}
+                   تاريخ القيد: {currentUser.createdAt ? new Date(currentUser.createdAt).toLocaleDateString('ar-EG') : 'مسجل'}
                  </span>
               </div>
             </div>

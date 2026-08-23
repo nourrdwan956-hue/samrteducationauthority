@@ -27,8 +27,8 @@ import {
 } from "../types";
 import {
   SUPER_ADMIN_CREDENTIALS,
-  DEMO_STUDENT_USER,
   FALLBACK_PLATFORM,
+  INITIAL_COURSES,
 } from "../data/mockData";
 import {
   INITIAL_BANK_QUESTIONS,
@@ -525,11 +525,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({
       try {
         let parsed: Course[] = JSON.parse(saved);
         const fakeKeywords = [
-          "فيزياء",
           "الصواريخ",
           "النجار",
-          "الجغرافيا",
-          "أطلس",
           "أحمد سامي",
           "خالد الصاوي",
           "د. طارق",
@@ -537,9 +534,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({
           "kgk",
         ];
         const fakePlatformIds = [
-          "platform-english-01",
           "platform-physics-01",
-          "platform-arabic-01",
           "platform-chemistry-01",
           "platform-french-01",
           "platform-01",
@@ -559,15 +554,17 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({
           return !hasFakeKeyword;
         });
 
-        return parsed.map((course) => ({
+        const validCourses = parsed.map((course) => ({
           ...course,
           participatingTeachers: course.participatingTeachers || [],
         }));
+
+        if (validCourses.length > 0) return validCourses;
       } catch (e) {
         console.error(e);
       }
     }
-    return [];
+    return INITIAL_COURSES;
   });
 
   const [exams, setExams] = useState<Exam[]>(() => {
@@ -814,12 +811,27 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({
       ]);
 
       if (remotePlatforms !== null) {
-        setPlatforms(remotePlatforms);
-        localStorage.setItem("sea_platforms", JSON.stringify(remotePlatforms));
+        const hasFallback = remotePlatforms.some(p => p.id === FALLBACK_PLATFORM.id);
+        const finalPlatforms = hasFallback ? remotePlatforms : [FALLBACK_PLATFORM, ...remotePlatforms];
+        setPlatforms(finalPlatforms);
+        localStorage.setItem("sea_platforms", JSON.stringify(finalPlatforms));
       }
       if (remoteCourses !== null) {
-        setCourses(remoteCourses);
-        localStorage.setItem("sea_courses", JSON.stringify(remoteCourses));
+        setCourses((prevCourses) => {
+          let merged = [...remoteCourses];
+          if (merged.length === 0) {
+            merged = prevCourses.length > 0 ? prevCourses : INITIAL_COURSES;
+          } else {
+            // Keep any locally created course that hasn't synced yet
+            prevCourses.forEach((lc) => {
+              if (!merged.some((rc) => rc.id === lc.id)) {
+                merged.push(lc);
+              }
+            });
+          }
+          localStorage.setItem("sea_courses", JSON.stringify(merged));
+          return merged;
+        });
       }
       if (remoteCoupons !== null) {
         setCoupons(remoteCoupons);
@@ -903,16 +915,30 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({
       try {
         const remotePlatforms = await fetchSupabasePlatforms();
         if (remotePlatforms !== null) {
-          setPlatforms(remotePlatforms);
+          const hasFallback = remotePlatforms.some(p => p.id === FALLBACK_PLATFORM.id);
+          const finalPlatforms = hasFallback ? remotePlatforms : [FALLBACK_PLATFORM, ...remotePlatforms];
+          setPlatforms(finalPlatforms);
           localStorage.setItem(
             "sea_platforms",
-            JSON.stringify(remotePlatforms),
+            JSON.stringify(finalPlatforms),
           );
         }
         const remoteCourses = await fetchSupabaseCourses();
         if (remoteCourses !== null) {
-          setCourses(remoteCourses);
-          localStorage.setItem("sea_courses", JSON.stringify(remoteCourses));
+          setCourses((prevCourses) => {
+            let merged = [...remoteCourses];
+            if (merged.length === 0) {
+              merged = prevCourses.length > 0 ? prevCourses : INITIAL_COURSES;
+            } else {
+              prevCourses.forEach((lc) => {
+                if (!merged.some((rc) => rc.id === lc.id)) {
+                  merged.push(lc);
+                }
+              });
+            }
+            localStorage.setItem("sea_courses", JSON.stringify(merged));
+            return merged;
+          });
         }
         const remoteCoupons = await fetchSupabaseCoupons();
         if (remoteCoupons !== null) {
@@ -1424,6 +1450,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({
       enrolledCourseIds: [],
       walletBalance: 0,
       createdAt: new Date().toISOString().split("T")[0],
+      avatar: extraProfileData?.photoUrl || extraProfileData?.avatar || undefined,
       ...extraProfileData,
       // SECURITY HARDENING: Role and Admission Stage CANNOT be bypassed by any hacker or tampered payload
       role: "student",
@@ -1733,7 +1760,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({
         courseData.platformId ||
         selectedPlatformId ||
         platforms[0]?.id ||
-        "platform-english-01",
+        FALLBACK_PLATFORM.id,
       title: courseData.title || "كورس تعليمي جديد",
       subtitle: courseData.subtitle || "",
       description: courseData.description || "",
@@ -1763,7 +1790,11 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({
         },
       ],
     };
-    setCourses((prev) => [newCourse, ...prev]);
+    setCourses((prev) => {
+      const updated = [newCourse, ...prev];
+      localStorage.setItem("sea_courses", JSON.stringify(updated));
+      return updated;
+    });
     setPlatforms((prev) =>
       prev.map((p) =>
         p.id === newCourse.platformId
@@ -1782,6 +1813,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({
   const updateCourse = (id: string, updates: Partial<Course>) => {
     setCourses((prev) => {
       const updated = prev.map((c) => (c.id === id ? { ...c, ...updates } : c));
+      localStorage.setItem("sea_courses", JSON.stringify(updated));
       const target = updated.find((c) => c.id === id);
       if (target) syncCourseToSupabase(target).catch(console.warn);
       return updated;
@@ -1790,7 +1822,11 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({
   };
 
   const deleteCourse = (id: string) => {
-    setCourses((prev) => prev.filter((c) => c.id !== id));
+    setCourses((prev) => {
+      const updated = prev.filter((c) => c.id !== id);
+      localStorage.setItem("sea_courses", JSON.stringify(updated));
+      return updated;
+    });
     deleteCourseFromSupabase(id).catch(console.warn);
     addToast("info", "تم حذف الكورس");
   };
@@ -1850,6 +1886,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({
         }
         return c;
       });
+      localStorage.setItem("sea_courses", JSON.stringify(updated));
       return updated;
     });
     addToast("success", "تم إضافة الدرس بنجاح!");
@@ -1881,6 +1918,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({
         }
         return c;
       });
+      localStorage.setItem("sea_courses", JSON.stringify(updated));
       return updated;
     });
     addToast("success", "تم تحديث الدرس");
@@ -1909,6 +1947,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({
         }
         return c;
       });
+      localStorage.setItem("sea_courses", JSON.stringify(updated));
       return updated;
     });
     addToast("info", "تم حذف الدرس");

@@ -1,0 +1,20 @@
+--- src/components/HomeHero.tsx
++++ src/components/HomeHero.tsx
+@@ -1113,9 +1113,11 @@
+             <div className="inline-flex items-center gap-2 px-3 py-1 rounded bg-cyan-500/15 text-cyan-400 text-xs font-black border border-cyan-500/20 mx-auto">
+               <Phone className="w-4 h-4 text-cyan-400" />
+-              <span>خط الاتصال المؤسسي الموحد</span>
++              <span>لحجز المنصات للمعلمين</span>
+             </div>
+             <h2 className="text-2xl sm:text-4xl font-black text-white leading-tight">
+-              للاستفسارات فقط
++              لحجز المنصات التعليمية
+             </h2>
+             <p className="text-xs sm:text-sm text-slate-300 leading-relaxed">
+-              للتواصل والتنسيق الأكاديمي، أو لطلب تراخيص تأسيس منصات مستقلة جديدة لمعلمي وموجهي المواد التعليمية المعتمدة بالمنظومة، يرجى التواصل مباشرة عبر خط الاستفسارات الموحد:
++              إذا كنت معلماً وترغب في حجز وتأسيس منصة تعليمية خاصة بك، يرجى التواصل عبر الرقم التالي. 
++              <br/>
++              <span className="text-rose-400 font-bold block mt-2">
++                (ملاحظة هامة: هذا الرقم مخصص للمعلمين فقط لحجز المنصات، وليس مخصصاً للطلاب)
++              </span>
+             </p>

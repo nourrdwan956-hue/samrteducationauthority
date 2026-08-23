@@ -166,9 +166,79 @@ export const SecureVideoPlayer: React.FC<SecureVideoPlayerProps> = ({
 
   // Strict Access Guard
   const isTeacherOrAdmin = currentUser?.role === 'teacher' || currentUser?.role === 'super_admin';
+  const isStudent = currentUser?.role === 'student';
+  const isAccountActive = isStudent ? (currentUser?.accountStatus === 'active' || currentUser?.accountStatus === 'verified') : true;
   const isEnrolled = currentUser?.enrolledCourseIds?.includes(course.id);
-  const isFreePreview = Boolean(lesson.isFreePreview);
-  const hasAccess = isEnrolled || isTeacherOrAdmin || isFreePreview;
+  const hasAccess = isTeacherOrAdmin || (Boolean(currentUser) && isAccountActive && isEnrolled);
+
+  if (!currentUser) {
+    return (
+      <div className="w-full max-w-4xl mx-auto py-12 px-4 text-right">
+        <div className="p-8 sm:p-12 rounded-3xl bg-slate-900 border border-slate-800 text-white space-y-8 shadow-2xl relative overflow-hidden">
+          <div className="flex flex-col items-center text-center space-y-4">
+            <div className="w-20 h-20 rounded-3xl bg-amber-500/10 border border-amber-500/30 flex items-center justify-center text-amber-400 shadow-xl">
+              <Lock className="w-10 h-10" />
+            </div>
+            <span className="px-3 py-1 rounded-full text-xs font-black bg-amber-500/20 text-amber-300 border border-amber-500/40">
+              🔒 مطلوب تسجيل الدخول بحساب معتمد
+            </span>
+            <h2 className="text-2xl sm:text-3xl font-black text-white">
+              لا يمكن فتح المحتوى التعليمي بدون حساب رسمي
+            </h2>
+            <p className="text-sm text-slate-300 max-w-xl leading-relaxed">
+              وفقاً للوائح المنظومة، يلزم تسجيل الدخول بحساب طالب مسجل ومعتمد من إدارة القبول لمشاهدة المحاضرات وحل التدريبات.
+            </p>
+          </div>
+          <div className="flex flex-col sm:flex-row items-center justify-center gap-4 pt-2">
+            <button
+              onClick={() => setIsAuthModalOpen(true)}
+              className="w-full sm:w-auto px-8 py-4 rounded-2xl bg-cyan-500 hover:bg-cyan-400 text-slate-950 font-black text-sm shadow-xl transition-all cursor-pointer flex items-center justify-center gap-2"
+            >
+              <Lock className="w-5 h-5" />
+              <span>تسجيل الدخول / إنشاء حساب</span>
+            </button>
+            <button
+              onClick={() => setCurrentView('course_detail')}
+              className="w-full sm:w-auto px-6 py-4 rounded-2xl bg-slate-800 hover:bg-slate-700 text-slate-300 font-bold text-sm border border-slate-700 transition-colors cursor-pointer text-center"
+            >
+              العودة لمعاينة الكورس
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  if (isStudent && !isAccountActive) {
+    return (
+      <div className="w-full max-w-4xl mx-auto py-12 px-4 text-right">
+        <div className="p-8 sm:p-12 rounded-3xl bg-slate-900 border border-amber-500/30 text-white space-y-8 shadow-2xl relative overflow-hidden">
+          <div className="flex flex-col items-center text-center space-y-4">
+            <div className="w-20 h-20 rounded-3xl bg-amber-500/10 border border-amber-500/30 flex items-center justify-center text-amber-400 shadow-xl">
+              <Lock className="w-10 h-10" />
+            </div>
+            <span className="px-3 py-1 rounded-full text-xs font-black bg-amber-500/20 text-amber-300 border border-amber-500/40">
+              ⏳ الحساب قيد التدقيق الإداري
+            </span>
+            <h2 className="text-2xl sm:text-3xl font-black text-white">
+              طلب قيدك قيد المراجعة الإدارية
+            </h2>
+            <p className="text-sm text-slate-300 max-w-xl leading-relaxed">
+              عفواً يا <strong className="text-cyan-400">{currentUser.name}</strong>، حسابك ما زال قيد الفحص والاعتماد من قبل إدارة شؤون الطلاب. لا يمكن بدء المحاضرات أو تشغيل الفيديوهات إلا بعد اعتماد الحساب رسمياً.
+            </p>
+          </div>
+          <div className="flex justify-center pt-2">
+            <button
+              onClick={() => setCurrentView('student_portal')}
+              className="px-8 py-3.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-white font-bold text-xs transition-colors cursor-pointer"
+            >
+              العودة إلى البوابة
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   if (!hasAccess) {
     return (
@@ -187,11 +257,11 @@ export const SecureVideoPlayer: React.FC<SecureVideoPlayerProps> = ({
             </span>
 
             <h2 className="text-2xl sm:text-3xl font-black text-white">
-              عفواً! هذه المحاضرة غير متاحة للفتح بدون اشتراك
+              عفواً! هذه المحاضرة غير متاحة للفتح بدون اشتراك معتمد
             </h2>
 
             <p className="text-sm text-slate-300 max-w-xl leading-relaxed">
-              تصل الآن إلى محاضرة <span className="font-bold text-cyan-400">"{lesson.title}"</span> ضمن كورس <span className="font-bold text-cyan-400">"{course.title}"</span>. رابط الفيديو ومحتويات الشرح مشفرة ومحمية تماماً ولا يمكن عرضها إلا للطلاب المشتركين.
+              تصل الآن إلى محاضرة <span className="font-bold text-cyan-400">"{lesson.title}"</span> ضمن كورس <span className="font-bold text-cyan-400">"{course.title}"</span>. المحتوى مشفر ومخصص للطلاب المقبولين والمشتركين في الكورس.
             </p>
           </div>
 
@@ -209,7 +279,7 @@ export const SecureVideoPlayer: React.FC<SecureVideoPlayerProps> = ({
             >
               <Lock className="w-5 h-5" />
               <span>
-                {currentUser ? `الاشتراك بـ ${course.price} ج.م لفتح الكورس بالكامل` : 'تسجيل الدخول والاشتراك الآن'}
+                الاشتراك بـ {course.price} ج.م لفتح الكورس
               </span>
             </button>
 

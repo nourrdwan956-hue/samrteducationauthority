@@ -682,7 +682,9 @@ export const CourseDetail: React.FC = () => {
               );
 
               const isTeacherOrAdmin = currentUser?.role === 'teacher' || currentUser?.role === 'super_admin';
-              const canAccessAll = isEnrolled || isTeacherOrAdmin;
+              const isStudent = currentUser?.role === 'student';
+              const isAccountApproved = isStudent ? (currentUser?.accountStatus === 'active' || currentUser?.accountStatus === 'verified') : Boolean(currentUser);
+              const canAccessAll = isTeacherOrAdmin || (Boolean(currentUser) && isAccountApproved && isEnrolled);
 
               const baseModules = currentCourse.modules && currentCourse.modules.length > 0
                 ? [...currentCourse.modules]
@@ -961,7 +963,7 @@ export const CourseDetail: React.FC = () => {
                                     
                                     if (isDraft && !isTeacherOrAdmin) return null;
 
-                                    const canAccess = (canAccessAll || lesson.isFreePreview) && (!isScheduledFuture || isTeacherOrAdmin);
+                                    const canAccess = canAccessAll && (!isScheduledFuture || isTeacherOrAdmin);
                                     
                                     const isVideo = lesson.type === 'video' || (!lesson.type && lesson.videoUrl);
                                     const isExam = lesson.type === 'exam' || !!lesson.examId;

@@ -10,6 +10,7 @@ import {
   GraduationCap,
   Tv,
   MessageCircle,
+  Code2,
 } from 'lucide-react';
 import { ThemeController } from './ThemeController';
 
@@ -65,15 +66,15 @@ export const Footer: React.FC = () => {
               <span>متابعة تفاعلية للدرجات وامتحانات دورية للطلاب</span>
             </div>
 
-            {/* Direct WhatsApp Contact Button */}
+            {/* Direct WhatsApp Contact Button for Booking Platforms */}
             <a
-              href="https://wa.me/201151157100?text=%D8%A7%D9%84%D8%B3%D9%84%D8%A7%D9%85%20%D8%B9%D9%84%D9%8A%D9%83%D9%85%D9%80%D8%8C%20%D8%A3%D8%B1%D9%8A%D8%AF%20%D8%A7%D9%84%D8%A7%D8%B3%D8%AA%D9%81%D8%B3%D8%A7%D8%B1%20%D8%B9%D9%86%20%D8%AE%D8%AF%D9%85%D8%A7%D8%AA%20%D9%88%D9%83%D9%88%D8%B1%D8%B3%D8%A7%D8%AA%20%D9%85%D9%86%D8%B8%D9%88%D9%85%D8%A9%20SEA"
+              href="https://wa.me/201151157100?text=%D8%A7%D9%84%D8%B3%D9%84%D8%A7%D9%85%20%D8%B9%D9%84%D9%8A%D9%83%D9%85%D9%80%D8%8C%20%D8%A3%D8%B1%D9%8A%D8%AF%20%D8%AD%D8%AC%D8%B2%20%D9%85%D9%86%D8%B5%D8%A9%20%D8%AA%D8%B9%D9%84%D9%8A%D9%85%D9%8A%D8%A9%20%D8%AC%D8%AF%D9%8A%D8%AF%D8%A9"
               target="_blank"
               rel="noopener noreferrer"
-              className="mt-3 px-4 py-2.5 rounded-xl bg-emerald-500 hover:bg-emerald-600 text-white text-xs font-black shadow-md transition-all flex items-center justify-center gap-2 cursor-pointer"
+              className="mt-3 px-4 py-2.5 rounded-xl bg-cyan-600 hover:bg-cyan-700 text-white text-xs font-black shadow-md transition-all flex items-center justify-center gap-2 cursor-pointer"
             >
               <MessageCircle className="w-4 h-4 fill-white" />
-              <span>واتساب الدعم المباشر: 01151157100</span>
+              <span>لحجز منصة للمعلمين: 01151157100</span>
             </a>
           </div>
 
@@ -244,30 +245,32 @@ export const Footer: React.FC = () => {
           {/* Prominent Developer Signature */}
           <div
             id="developer-signature-banner"
-            className={`group relative px-6 py-3 rounded-2xl border shadow-lg transition-all duration-300 flex items-center gap-3 ${
+            className={`group relative px-6 py-3.5 rounded-2xl border shadow-xl transition-all duration-300 flex items-center gap-3.5 ${
               isLight
-                ? 'bg-white border-cyan-200 hover:border-cyan-400 shadow-slate-200/50'
-                : 'bg-gradient-to-r from-slate-900 via-slate-800 to-slate-900 border-cyan-500/30 hover:border-cyan-400/80 shadow-[0_0_20px_rgba(14,165,233,0.15)]'
+                ? 'bg-gradient-to-r from-white via-cyan-50/40 to-white border-cyan-200/80 hover:border-cyan-400 shadow-cyan-950/5'
+                : 'bg-gradient-to-r from-slate-900 via-slate-900/90 to-slate-950 border-cyan-500/30 hover:border-cyan-400/70 shadow-[0_4px_25px_rgba(6,182,212,0.12)]'
             }`}
           >
-            <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-amber-400 to-orange-500 flex items-center justify-center text-slate-950 font-black shadow-md">
-              <Zap className="w-4 h-4 text-slate-950 fill-slate-950" />
+            <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-cyan-500 via-sky-500 to-blue-600 flex items-center justify-center text-white font-black shadow-md shrink-0">
+              <Code2 className="w-5 h-5 text-white" />
             </div>
-            <div className="text-center md:text-right">
+            <div className="text-right">
               <div
                 className={`text-xs font-black tracking-wide flex items-center gap-1.5 ${
-                  isLight ? 'text-slate-900' : 'text-slate-200 group-hover:text-white'
+                  isLight ? 'text-slate-900' : 'text-slate-100 group-hover:text-white'
                 }`}
               >
-                <span>⚡ Built with</span>
-                <Heart className="w-3.5 h-3.5 text-rose-500 fill-rose-500 inline animate-bounce" />
-                <span>by</span>
-                <span className="text-cyan-600 dark:text-cyan-400 font-extrabold text-sm group-hover:underline transition-colors">
-                  Nour El-Saeed
+                <span>Built with passion & precision by</span>
+                <span className="text-transparent bg-clip-text bg-gradient-to-r from-cyan-500 to-sky-400 font-black text-sm">
+                  Nour El Saeed
                 </span>
+                <Sparkles className="w-3.5 h-3.5 text-amber-400 fill-amber-400 inline" />
               </div>
-              <div className="text-[11px] font-bold text-slate-400 tracking-wider">
-                • Developer & Designer •
+              <div className="text-[11px] font-bold text-slate-400 dark:text-slate-400 tracking-wide flex items-center gap-1.5 mt-0.5">
+                <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                <span>Developer & System Architect</span>
+                <span className="text-slate-300 dark:text-slate-600">•</span>
+                <span>UI/UX Designer</span>
               </div>
             </div>
           </div>
