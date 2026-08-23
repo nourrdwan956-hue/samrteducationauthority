@@ -115,7 +115,7 @@ export const PlatformDetail: React.FC = () => {
   };
 
   return (
-    <div className="w-full max-w-7xl mx-auto space-y-12 text-right">
+    <div className="w-full max-w-7xl mx-auto space-y-8 sm:space-y-12 text-right px-3 sm:px-6 lg:px-8">
       
       {/* Platform Hero Banner */}
       <div

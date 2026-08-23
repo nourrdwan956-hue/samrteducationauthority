@@ -369,29 +369,29 @@ export const HomeHero: React.FC = () => {
   ];
 
   return (
-    <div className="w-full max-w-7xl mx-auto space-y-24 text-right relative pb-20 select-none px-4 sm:px-6 lg:px-8">
+    <div className="w-full max-w-7xl mx-auto space-y-16 sm:space-y-24 text-right relative pb-20 select-none px-3 sm:px-6 lg:px-8">
       
       {/* Dynamic Ambient Background Elements - Minimal & Luxury */}
-      <div className="absolute top-[-100px] left-1/4 w-[500px] h-[500px] bg-cyan-500/[0.03] rounded-full blur-[140px] pointer-events-none" />
-      <div className="absolute top-[400px] right-10 w-[400px] h-[400px] bg-sky-500/[0.03] rounded-full blur-[120px] pointer-events-none" />
+      <div className="absolute top-[-100px] left-1/4 w-[280px] sm:w-[500px] h-[280px] sm:h-[500px] bg-cyan-500/[0.03] rounded-full blur-[100px] sm:blur-[140px] pointer-events-none" />
+      <div className="absolute top-[400px] right-10 w-[240px] sm:w-[400px] h-[240px] sm:h-[400px] bg-sky-500/[0.03] rounded-full blur-[90px] sm:blur-[120px] pointer-events-none" />
 
       {/* ========================================================================= */}
       {/* SECTION 1: OFFICIAL INSTITUTIONAL HERO HEADER */}
       {/* ========================================================================= */}
-      <div className="relative pt-6 pb-6 overflow-hidden">
+      <div className="relative pt-3 sm:pt-6 pb-6 overflow-hidden">
         {/* Artistic Student/Teacher Watermark - High Quality & Refined */}
-        <div className="absolute top-0 left-0 w-full h-[650px] pointer-events-none flex justify-center items-center opacity-[0.05] dark:opacity-[0.07] -z-10 overflow-hidden select-none">
-          <div className="flex justify-between items-center w-full max-w-[1500px] px-6 sm:px-12">
+        <div className="absolute top-0 left-0 w-full h-[650px] pointer-events-none flex justify-center items-center opacity-[0.04] dark:opacity-[0.06] -z-10 overflow-hidden select-none">
+          <div className="flex justify-between items-center w-full max-w-[1500px] px-3 sm:px-12">
             <img
               src="/student-logo.png"
               alt="Student Watermark"
-              className="w-[240px] sm:w-[360px] lg:w-[460px] h-auto object-contain transform -translate-x-6 sm:-translate-x-12 -rotate-6 filter drop-shadow-sm"
+              className="w-[140px] sm:w-[320px] lg:w-[460px] h-auto object-contain transform -rotate-6 filter drop-shadow-sm"
               loading="lazy"
             />
             <img
               src="/teacher-logo.png"
               alt="Teacher Watermark"
-              className="w-[240px] sm:w-[360px] lg:w-[460px] h-auto object-contain transform translate-x-6 sm:translate-x-12 rotate-6 filter drop-shadow-sm"
+              className="w-[140px] sm:w-[320px] lg:w-[460px] h-auto object-contain transform rotate-6 filter drop-shadow-sm"
               loading="lazy"
             />
           </div>

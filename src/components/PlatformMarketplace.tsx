@@ -29,7 +29,7 @@ export const PlatformMarketplace: React.FC = () => {
   });
 
   return (
-    <div className="w-full max-w-7xl mx-auto space-y-10 text-right">
+    <div className="w-full max-w-7xl mx-auto space-y-8 sm:space-y-10 text-right px-3 sm:px-6 lg:px-8">
       
       {/* Marketplace Hero Header */}
       <div className="text-center space-y-4 max-w-3xl mx-auto pt-4">
